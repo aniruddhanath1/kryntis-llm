@@ -1,0 +1,67 @@
+# ─── Core ML & Training ───────────────────────────────────────
+torch>=2.2.0
+transformers>=4.40.0
+sentence-transformers>=2.7.0
+tiktoken>=0.7.0
+datasets>=2.20.0
+tokenizers>=0.19.0
+accelerate>=0.30.0
+tqdm>=4.66.0
+gitpython>=3.1.40
+
+# ─── LLM Providers ─────────────────────────────────────────
+llama-cpp-python>=0.2.70        # Local GGUF model fallback
+
+# ─── Vector / Knowledge Store ──────────────────────────────
+chromadb>=0.5.0
+faiss-cpu>=1.7.4
+rank-bm25>=0.2.2
+
+# ─── Relational / Async DB ─────────────────────────────────
+aiosqlite>=0.20.0
+
+# ─── FastAPI / Async HTTP ──────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+sse-starlette>=1.8.2
+python-multipart>=0.0.9
+httpx>=0.27.0
+
+# ─── File Parsing ──────────────────────────────────────────
+PyMuPDF>=1.24.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+openpyxl>=3.1.2
+xlrd>=2.0.1
+pandas>=2.2.0
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+Pillow>=10.3.0
+pytesseract>=0.3.10             # Optional OCR (requires Tesseract binary)
+
+# ─── Internet / Search ─────────────────────────────────────
+duckduckgo-search>=6.1.0
+readability-lxml>=0.8.1
+tenacity>=8.3.0
+
+# ─── Config / Settings ─────────────────────────────────────
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+PyYAML>=6.0.1
+python-dotenv>=1.0.0
+
+# ─── Logging / Observability ───────────────────────────────
+structlog>=24.1.0
+rich>=13.7.0
+
+# ─── Scheduling ────────────────────────────────────────────
+apscheduler>=3.10.4
+
+# ─── Utilities ─────────────────────────────────────────────
+psutil>=5.9.8
+cachetools>=5.3.3
+xxhash>=3.4.1
+chardet>=5.2.0
+python-magic-bin>=0.4.14; sys_platform == "win32"
+python-magic>=0.4.27; sys_platform != "win32"
+

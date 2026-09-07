@@ -1,0 +1,40 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    (): structlog.stdlib.ProcessorFormatter
+    processor: structlog.dev.ConsoleRenderer
+  plain:
+    format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+
+  file:
+    class: logging.handlers.RotatingFileHandler
+    formatter: plain
+    filename: data/logs/kryntis.log
+    maxBytes: 10485760   # 10 MB
+    backupCount: 5
+
+root:
+  level: INFO
+  handlers: [console, file]
+
+loggers:
+  kryntis:
+    level: INFO
+    propagate: true
+  service:
+    level: INFO
+    propagate: true
+  uvicorn:
+    level: WARNING
+    propagate: true
+  chromadb:
+    level: WARNING
+    propagate: true
