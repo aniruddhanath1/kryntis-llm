@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="100%" height="auto">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b14"/>
+      <stop offset="50%" stop-color="#0d1527"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="60%" stop-color="#4facfe"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f5d4"/>
+      <stop offset="100%" stop-color="#7b2cbf"/>
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5d4" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Card Background -->
+  <rect width="1200" height="380" rx="20" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- Subtle Matrix Grid -->
+  <g stroke="#1e293b" stroke-width="1" opacity="0.45">
+    <line x1="0" y1="76" x2="1200" y2="76"/>
+    <line x1="0" y1="152" x2="1200" y2="152"/>
+    <line x1="0" y1="228" x2="1200" y2="228"/>
+    <line x1="0" y1="304" x2="1200" y2="304"/>
+    <line x1="200" y1="0" x2="200" y2="380"/>
+    <line x1="400" y1="0" x2="400" y2="380"/>
+    <line x1="600" y1="0" x2="600" y2="380"/>
+    <line x1="800" y1="0" x2="800" y2="380"/>
+    <line x1="1000" y1="0" x2="1000" y2="380"/>
+  </g>
+
+  <!-- Ambient Glow -->
+  <circle cx="160" cy="190" r="130" fill="#00f2fe" opacity="0.08"/>
+  <circle cx="1050" cy="120" r="160" fill="#a855f7" opacity="0.08"/>
+
+  <!-- Left Icon / Cybernetic Hexagon -->
+  <g transform="translate(145, 190)" filter="url(#neonGlow)">
+    <polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36" fill="none" stroke="url(#accentGrad)" stroke-width="3"/>
+    <polygon points="0,-50 43.3,-25 43.3,25 0,50 -43.3,25 -43.3,-25" fill="#0b1329" stroke="#00f2fe" stroke-width="2"/>
+    <circle cx="0" cy="0" r="15" fill="url(#brandGrad)"/>
+    <!-- Internal Nodes -->
+    <line x1="0" y1="-50" x2="0" y2="-72" stroke="#00f2fe" stroke-width="2.5"/>
+    <line x1="43.3" y1="25" x2="62.4" y2="36" stroke="#a855f7" stroke-width="2.5"/>
+    <line x1="-43.3" y1="25" x2="-62.4" y2="36" stroke="#00f5d4" stroke-width="2.5"/>
+  </g>
+
+  <!-- Main Title Area -->
+  <g transform="translate(255, 140)">
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-size="52" font-weight="900" letter-spacing="3" fill="url(#brandGrad)">KRYNTIS AI</text>
+    
+    <!-- Version Badge (Positioned safely next to title with clear margin) -->
+    <g transform="translate(360, -32)">
+      <rect x="0" y="0" width="135" height="32" rx="16" fill="url(#badgeGrad)" stroke="#00f5d4" stroke-width="1.2"/>
+      <text x="67" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="800" fill="#00f5d4" letter-spacing="1.5" text-anchor="middle">v4.0.0 PROD</text>
+    </g>
+  </g>
+
+  <!-- Subtitle -->
+  <text x="255" y="195" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="500" fill="#94a3b8" letter-spacing="1">Sovereign Multi-Domain Autonomous LLM &amp; Cognition Matrix</text>
+
+  <!-- Feature Tags / Bottom Pills (Properly sized & spaced) -->
+  <g transform="translate(255, 245)">
+    <!-- Tag 1 -->
+    <g transform="translate(0, 0)">
+      <rect width="195" height="38" rx="19" fill="#0d182e" stroke="#0284c7" stroke-width="1.2"/>
+      <circle cx="18" cy="19" r="4.5" fill="#00f2fe"/>
+      <text x="32" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">Tokenizer-Free Byte Core</text>
+    </g>
+
+    <!-- Tag 2 -->
+    <g transform="translate(210, 0)">
+      <rect width="195" height="38" rx="19" fill="#0d182e" stroke="#7c3aed" stroke-width="1.2"/>
+      <circle cx="18" cy="19" r="4.5" fill="#a855f7"/>
+      <text x="32" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">5B Virtual Session Context</text>
+    </g>
+
+    <!-- Tag 3 -->
+    <g transform="translate(420, 0)">
+      <rect width="190" height="38" rx="19" fill="#0d182e" stroke="#059669" stroke-width="1.2"/>
+      <circle cx="18" cy="19" r="4.5" fill="#10b981"/>
+      <text x="32" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">Voice &amp; AI Tool Registry</text>
+    </g>
+
+    <!-- Tag 4 -->
+    <g transform="translate(625, 0)">
+      <rect width="205" height="38" rx="19" fill="#0d182e" stroke="#d97706" stroke-width="1.2"/>
+      <circle cx="18" cy="19" r="4.5" fill="#f59e0b"/>
+      <text x="32" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">14 Sector Pretrain Domains</text>
+    </g>
+  </g>
+</svg>

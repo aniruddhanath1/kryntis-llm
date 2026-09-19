@@ -1,0 +1,113 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Kryntis: Serve API (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["serve"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Generate All Datasets",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["generate-datasets"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train All Domains (Sequential)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/train.py",
+      "args": ["--domain", "general", "--epochs", "3"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - Coding",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "coding"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - AGI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "agi"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - Healthcare",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "healthcare"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - FinTech",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "fintech"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - Military",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "military"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - Government",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "government"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Domain - Media",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train", "--domain", "media"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Train Interactive (Human Feedback)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["train-interactive"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Run Unit Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "unittest",
+      "args": ["discover", "tests"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

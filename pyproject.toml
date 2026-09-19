@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "kryntis-llm"
+version = "1.0.0"
+description = "Kryntis AI — Lightweight LLM platform with RAG, memory, continual learning, and internet research"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kryntis AI" }]
+
+[project.scripts]
+kryntis-service = "service.main:run"
+kryntis-download-model = "scripts.download_base_model:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["kryntis*", "service*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+strict = false
