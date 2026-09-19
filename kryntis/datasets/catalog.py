@@ -8,11 +8,16 @@ Domains:
   - english:            Core natural language, grammar & structure
   - regional_languages: Multilingual and regional language text
   - emotion:            Emotional intelligence, empathy, dialogue
-  - coding:             Software engineering, algorithms, multi-language coding
+  - coding:             Software engineering, algorithms, all world programming languages
   - crm:                Enterprise CRM systems (Salesforce, SAP, Dynamics, ServiceNow, HubSpot)
-  - sysadmin:           Shell scripting, PowerShell, MDM, assembly
+  - sysadmin:           Shell scripting, PowerShell, MDM, assembly, Linux/Windows administration
   - security:           Cybersecurity, patch analysis, vulnerabilities, device hardware
-  - healthcare:         Medical knowledge, clinical Q&A, biomedical notes
+  - healthcare:         Medical knowledge, clinical Q&A, biomedical notes, HIPAA, ICD-10/11
+  - agi:                Artificial General Intelligence reasoning, ARC, Big-Bench, multi-task logic
+  - fintech:            Financial engineering, algorithmic trading, banking APIs, ISO 20022, FIX
+  - military:           Defense doctrine, tactical communications, STANAG, MIL-STD, radar/EW
+  - government:         Public policy, legislative drafting, administrative law, open gov data
+  - media:              Journalism ethics, broadcast scripts, multimedia copywriting, AP style
 
 Phase guide:
   phase=1  Smaller / essential — run first; safe for RAM-constrained machines
@@ -35,6 +40,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class DatasetSource:
+    """Dataset source configuration describing location and processing rules."""
+
     id: str
     name: str
     domain: str                     # see module docstring
@@ -50,7 +57,13 @@ class DatasetSource:
 
 @dataclass
 class ModelSource:
-    """An open-source model pullable via Ollama (no HuggingFace required)."""
+    """External serving model plus a custom Kryntis training-domain hint.
+
+    ``training_domain`` selects an existing Kryntis JSONL corpus for custom
+    checkpoint training. It never downloads, fine-tunes, or modifies this
+    external model artifact.
+    """
+
     id: str
     name: str
     ollama_tag: str                 # pull with: ollama pull <ollama_tag>
@@ -59,11 +72,12 @@ class ModelSource:
     context_length: int
     description: str = ""
     recommended_domains: list[str] = field(default_factory=list)
+    training_domain: str | None = None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # DATASET CATALOG
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 
 DATASET_CATALOG: list[DatasetSource] = [
 
@@ -232,7 +246,7 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="text",
     ),
 
-    # ── Domain 2: Emotion & Emotional Intelligence ─────────────────────────────
+    # ── Domain 2: Emotion & Emotional Intelligence ───────────────────────────
 
     DatasetSource(
         id="synthetic-emotion",
@@ -293,7 +307,7 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="text",
     ),
 
-    # ── Domain 3: Coding & Software Engineering ────────────────────────────────
+    # ── Domain 3: Coding & Software Engineering (All Languages) ──────────────
 
     DatasetSource(
         id="synthetic-extended-tech",
@@ -304,6 +318,23 @@ DATASET_CATALOG: list[DatasetSource] = [
         languages=["c", "cpp", "basic", "cobol", "kotlin", "swift", "flutter", "react", "vue"],
         phase=1,
         description="Local synthetic dataset covering C, C++, BASIC, GWBASIC, COBOL, Mainframe, Kotlin, Swift, Flutter, React Native, Angular, Vue, and Linux distros",
+        text_key="text",
+    ),
+    DatasetSource(
+        id="synthetic-all-languages",
+        name="Synthetic Universal Polyglot Programming Languages Corpus",
+        domain="coding",
+        source_type="synthetic",
+        location="data/raw/synthetic-all-languages.jsonl",
+        languages=[
+            "python", "c", "cpp", "csharp", "java", "javascript", "typescript", "go", "rust",
+            "ruby", "php", "swift", "kotlin", "dart", "r", "julia", "scala", "haskell", "lua",
+            "perl", "fortran", "cobol", "erlang", "elixir", "clojure", "fsharp", "ocaml", "zig",
+            "nim", "v", "pascal", "ada", "d", "groovy", "matlab", "solidity", "vyper", "assembly",
+            "powershell", "bash", "sql", "verilog", "vhdl", "webassembly", "apex", "abap"
+        ],
+        phase=1,
+        description="Universal programming languages repository covering syntax, idiomatic patterns, standard libraries, and algorithms across 40+ world languages",
         text_key="text",
     ),
     DatasetSource(
@@ -373,6 +404,42 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="*.cpp",
     ),
     DatasetSource(
+        id="the-algorithms-rust",
+        name="The Algorithms — Rust",
+        domain="coding",
+        source_type="github",
+        location="https://github.com/TheAlgorithms/Rust.git",
+        languages=["rust"],
+        phase=1,
+        description="Data structures and algorithms implemented in safe, idiomatic Rust",
+        license="MIT",
+        text_key="*.rs",
+    ),
+    DatasetSource(
+        id="the-algorithms-go",
+        name="The Algorithms — Go",
+        domain="coding",
+        source_type="github",
+        location="https://github.com/TheAlgorithms/Go.git",
+        languages=["go"],
+        phase=1,
+        description="Data structures and algorithms in Go / Golang",
+        license="MIT",
+        text_key="*.go",
+    ),
+    DatasetSource(
+        id="the-algorithms-java",
+        name="The Algorithms — Java",
+        domain="coding",
+        source_type="github",
+        location="https://github.com/TheAlgorithms/Java.git",
+        languages=["java"],
+        phase=1,
+        description="Algorithms and data structures implemented in Java",
+        license="MIT",
+        text_key="*.java",
+    ),
+    DatasetSource(
         id="assembly-examples",
         name="Assembly x86/x64 Language Examples",
         domain="coding",
@@ -425,7 +492,7 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="input",
     ),
 
-    # ── Domain 3.5: SysAdmin, Shell Scripts & MDM ─────────────────────────────
+    # ── Domain 3.5: SysAdmin, Shell Scripts & MDM ────────────────────────────
 
     DatasetSource(
         id="synthetic-sysadmin",
@@ -502,7 +569,7 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="*.md",
     ),
 
-    # ── Domain 3.7: Enterprise CRM Systems ────────────────────────────────────
+    # ── Domain 3.7: Enterprise CRM Systems ───────────────────────────────────
 
     DatasetSource(
         id="synthetic-crm",
@@ -575,7 +642,7 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="*.py",
     ),
 
-    # ── Domain 4: Cybersecurity ────────────────────────────────────────────────
+    # ── Domain 4: Cybersecurity ──────────────────────────────────────────────
 
     DatasetSource(
         id="synthetic-security",
@@ -642,8 +709,19 @@ DATASET_CATALOG: list[DatasetSource] = [
         text_key="*.md",
     ),
 
-    # ── Domain 5: Healthcare & Clinical Knowledge ──────────────────────────────
+    # ── Domain 5: Healthcare & Clinical Knowledge ────────────────────────────
 
+    DatasetSource(
+        id="synthetic-healthcare",
+        name="Synthetic Healthcare, Clinical Guidelines & Biomedical Corpus",
+        domain="healthcare",
+        source_type="synthetic",
+        location="data/raw/synthetic-healthcare.jsonl",
+        languages=["english", "medical"],
+        phase=1,
+        description="Comprehensive synthetic clinical diagnostics, pharmacology, medical protocols, ICD-10/11, and HIPAA compliance",
+        text_key="text",
+    ),
     DatasetSource(
         id="medqa-data",
         name="MedQA USMLE Dataset",
@@ -689,16 +767,118 @@ DATASET_CATALOG: list[DatasetSource] = [
         license="MIT",
         text_key="*.json",
     ),
+
+    # ── Domain 6: AGI (Artificial General Intelligence) & Reasoning ──────────
+
+    DatasetSource(
+        id="synthetic-agi",
+        name="Synthetic AGI Reasoning, Chain-of-Thought & Multi-Task Logic",
+        domain="agi",
+        source_type="synthetic",
+        location="data/raw/synthetic-agi.jsonl",
+        languages=["english", "logic", "reasoning"],
+        phase=1,
+        description="Synthetic multi-step reasoning, ARC-style visual abstractions, meta-cognition, symbolic logic, and hypothesis generation",
+        text_key="text",
+    ),
+    DatasetSource(
+        id="arc-reasoning",
+        name="ARC (Abstraction and Reasoning Corpus) Benchmark",
+        domain="agi",
+        source_type="github",
+        location="https://github.com/fchollet/ARC-AGI.git",
+        languages=["json", "logic", "reasoning"],
+        phase=1,
+        description="Francois Chollet's Abstraction and Reasoning Corpus for measuring general fluid intelligence in AI systems",
+        license="Apache-2.0",
+        text_key="*.json",
+    ),
+    DatasetSource(
+        id="agi-cot-prompts",
+        name="Chain-of-Thought & Mathematical Reasoning Corpus",
+        domain="agi",
+        source_type="github",
+        location="https://github.com/EleutherAI/lm-evaluation-harness.git",
+        languages=["english", "python", "json"],
+        phase=2,
+        description="Extensive evaluation prompts and multi-task benchmarks for measuring artificial general reasoning capabilities",
+        license="MIT",
+        text_key="*.json",
+    ),
+
+    # ── Domain 7: FinTech & Financial Engineering ────────────────────────────
+
+    DatasetSource(
+        id="synthetic-fintech",
+        name="Synthetic FinTech, Algorithmic Trading, ISO 20022 & FIX Protocols",
+        domain="fintech",
+        source_type="synthetic",
+        location="data/raw/synthetic-fintech.jsonl",
+        languages=["english", "python", "finance"],
+        phase=1,
+        description="Financial algorithms, quantitative analysis, SEC filing schemas, GAAP/IFRS accounting, DeFi smart contracts, and banking protocols",
+        text_key="text",
+    ),
+    DatasetSource(
+        id="finnlp-trading",
+        name="Financial NLP & Market Analysis Datasets",
+        domain="fintech",
+        source_type="github",
+        location="https://github.com/AI4Finance-Foundation/FinNLP.git",
+        languages=["python", "english", "finance"],
+        phase=1,
+        description="Curated financial analysis, market sentiment indicators, and trading strategy frameworks",
+        license="MIT",
+        text_key="*.py",
+    ),
+
+    # ── Domain 8: Military & Defense Systems ─────────────────────────────────
+
+    DatasetSource(
+        id="synthetic-military",
+        name="Synthetic Defense Doctrine, STANAG Specs & Tactical Communications",
+        domain="military",
+        source_type="synthetic",
+        location="data/raw/synthetic-military.jsonl",
+        languages=["english", "defense", "protocols"],
+        phase=1,
+        description="Defense telemetry structures, MIL-STD documentation, cyber defense doctrines, electronic warfare protocols, and C4ISR architecture patterns",
+        text_key="text",
+    ),
+
+    # ── Domain 9: Government, Public Policy & Law ────────────────────────────
+
+    DatasetSource(
+        id="synthetic-government",
+        name="Synthetic Government Policy, Legislative Drafting & Open Gov",
+        domain="government",
+        source_type="synthetic",
+        location="data/raw/synthetic-government.jsonl",
+        languages=["english", "legal", "policy"],
+        phase=1,
+        description="Administrative regulations, legislative drafting templates, FOIA compliance guidelines, municipal data standards, and public procurement frameworks",
+        text_key="text",
+    ),
+
+    # ── Domain 10: Media & Journalism ────────────────────────────────────────
+
+    DatasetSource(
+        id="synthetic-media",
+        name="Synthetic Media, Journalism Standards, Broadcast Scripts & Content",
+        domain="media",
+        source_type="synthetic",
+        location="data/raw/synthetic-media.jsonl",
+        languages=["english", "media", "journalism"],
+        phase=1,
+        description="AP Style rules, broadcast script structures, journalistic ethics, multimedia asset metadata, fact-checking protocols, and digital publication workflows",
+        text_key="text",
+    ),
 ]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # MODEL CATALOG  — open-source models via Ollama (no HuggingFace required)
-# ══════════════════════════════════════════════════════════════════════════════
-# Download with:  ollama pull <ollama_tag>
-# List installed: ollama list
-# Run locally:    ollama run <ollama_tag>
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 
 MODEL_CATALOG: list[ModelSource] = [
     ModelSource(
@@ -710,6 +890,7 @@ MODEL_CATALOG: list[ModelSource] = [
         context_length=2048,
         description="Lightest production-ready chat model. Ideal for 4 GB RAM machines. Fast inference, good for dev.",
         recommended_domains=["english", "emotion", "coding"],
+        training_domain="english",
     ),
     ModelSource(
         id="qwen2.5-1.5b",
@@ -719,7 +900,8 @@ MODEL_CATALOG: list[ModelSource] = [
         license="Apache-2.0",
         context_length=32768,
         description="Alibaba's 1.5B instruct model. Best-in-class at this size for coding and multilingual tasks.",
-        recommended_domains=["english", "coding", "regional_languages"],
+        recommended_domains=["english", "coding", "regional_languages", "agi"],
+        training_domain="coding",
     ),
     ModelSource(
         id="phi3-mini",
@@ -729,7 +911,8 @@ MODEL_CATALOG: list[ModelSource] = [
         license="MIT",
         context_length=4096,
         description="Microsoft's 3.8B model that punches above its weight on reasoning and coding.",
-        recommended_domains=["coding", "english", "sysadmin"],
+        recommended_domains=["coding", "english", "sysadmin", "agi"],
+        training_domain="coding",
     ),
     ModelSource(
         id="gemma2-2b",
@@ -739,7 +922,8 @@ MODEL_CATALOG: list[ModelSource] = [
         license="Gemma Terms of Use",
         context_length=8192,
         description="Google's Gemma 2 2B — strong general capability at 2B scale with 8k context.",
-        recommended_domains=["english", "emotion", "healthcare"],
+        recommended_domains=["english", "emotion", "healthcare", "government"],
+        training_domain="healthcare",
     ),
     ModelSource(
         id="llama3.2-3b",
@@ -749,7 +933,8 @@ MODEL_CATALOG: list[ModelSource] = [
         license="Llama 3.2 Community License",
         context_length=131072,
         description="Meta's Llama 3.2 3B with 128k context window. Excellent instruction-following at 3B scale.",
-        recommended_domains=["english", "coding", "crm", "sysadmin"],
+        recommended_domains=["english", "coding", "crm", "sysadmin", "fintech", "media"],
+        training_domain="english",
     ),
     ModelSource(
         id="mistral-7b",
@@ -759,7 +944,8 @@ MODEL_CATALOG: list[ModelSource] = [
         license="Apache-2.0",
         context_length=32768,
         description="Mistral's flagship 7B model with 32k context. Strong across coding, reasoning, and general tasks. Requires ~6 GB RAM.",
-        recommended_domains=["english", "coding", "security", "sysadmin", "crm"],
+        recommended_domains=["english", "coding", "security", "sysadmin", "crm", "military", "agi"],
+        training_domain="coding",
     ),
     ModelSource(
         id="deepseek-coder-1.3b",
@@ -770,6 +956,7 @@ MODEL_CATALOG: list[ModelSource] = [
         context_length=16384,
         description="Lightweight code-specialist model from DeepSeek. Best small model for pure coding tasks.",
         recommended_domains=["coding", "sysadmin", "security"],
+        training_domain="coding",
     ),
     ModelSource(
         id="codellama-7b",
@@ -780,13 +967,14 @@ MODEL_CATALOG: list[ModelSource] = [
         context_length=16384,
         description="Meta's code-specialist 7B model. Excels at code generation, completion, and explanation.",
         recommended_domains=["coding", "sysadmin", "crm"],
+        training_domain="coding",
     ),
 ]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # Helper functions — Datasets
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 
 def get_catalog_by_domain(domain: str) -> list[DatasetSource]:
     """Return all datasets belonging to a specific domain."""
@@ -808,12 +996,17 @@ def get_catalog_by_source_type(source_type: str) -> list[DatasetSource]:
     return [ds for ds in DATASET_CATALOG if ds.source_type == source_type]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # Helper functions — Models
-# ══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 
 def get_all_models() -> list[ModelSource]:
     """Return all model sources."""
+    return MODEL_CATALOG
+
+
+def get_trainable_profiles() -> list[ModelSource]:
+    """Return serving profiles with custom Kryntis training-domain hints."""
     return MODEL_CATALOG
 
 

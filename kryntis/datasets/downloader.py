@@ -4,7 +4,9 @@ Dataset Downloader — Streams Hugging Face datasets and clones GitHub repos loc
 
 from __future__ import annotations
 
+import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -25,6 +27,27 @@ class DatasetDownloader:
         self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.github_dir = self.raw_dir / "github"
         self.github_dir.mkdir(parents=True, exist_ok=True)
+        self.manifest_dir = self.raw_dir / "manifests"
+        self.manifest_dir.mkdir(parents=True, exist_ok=True)
+
+    def write_manifest(self, source: DatasetSource, output_paths: list[Path]) -> Path:
+        """Write one provenance JSONL record for verified local dataset output.
+
+        Raises:
+            FileNotFoundError: If any claimed output artifact does not exist.
+        """
+        if missing := [path for path in output_paths if not path.exists()]:
+            raise FileNotFoundError(f"Dataset outputs do not exist: {missing}")
+        record = {
+            "source_id": source.id, "name": source.name, "domain": source.domain,
+            "source_type": source.source_type, "location": source.location,
+            "languages": source.languages, "phase": source.phase, "license": source.license,
+            "text_key": source.text_key, "generated_at": datetime.now(timezone.utc).isoformat(),
+            "output_paths": [str(path) for path in output_paths],
+        }
+        manifest = self.manifest_dir / f"{source.id}.jsonl"
+        manifest.write_text(json.dumps(record, ensure_ascii=False) + "\n", encoding="utf-8")
+        return manifest
 
     def download_domain(self, domain: str) -> None:
         from kryntis.datasets.catalog import get_catalog_by_domain
@@ -38,16 +61,20 @@ class DatasetDownloader:
         import gc
         for source in sources:
             if source.source_type == "synthetic":
-                self._generate_synthetic(source)
+                output = self._generate_synthetic(source)
             elif source.source_type == "huggingface":
-                self._download_hf(source)
+                output = self._download_hf(source)
             elif source.source_type == "github":
-                self._clone_github(source)
+                output = self._clone_github(source)
+            else:
+                output = None
+            if output:
+                self.write_manifest(source, [output])
             gc.collect()
 
         log.info("domain_dataset_download_completed", domain=domain)
 
-    def _generate_synthetic(self, source: DatasetSource) -> None:
+    def _generate_synthetic(self, source: DatasetSource) -> Path | None:
         from kryntis.datasets.synthetic_generator import SyntheticDatasetGenerator
         gen = SyntheticDatasetGenerator(raw_dir=str(self.raw_dir))
         if source.id == "synthetic-english":
@@ -66,6 +93,8 @@ class DatasetDownloader:
             gen.generate_crm()
         else:
             gen.generate_all()
+        output = self.raw_dir / f"{source.id}.jsonl"
+        return output if output.exists() else None
 
     def download_all(self, phase: int = 1) -> None:
         sources = get_catalog_by_phase(phase)
@@ -73,15 +102,21 @@ class DatasetDownloader:
 
         import gc
         for source in sources:
-            if source.source_type == "huggingface":
-                self._download_hf(source)
+            if source.source_type == "synthetic":
+                output = self._generate_synthetic(source)
+            elif source.source_type == "huggingface":
+                output = self._download_hf(source)
             elif source.source_type == "github":
-                self._clone_github(source)
+                output = self._clone_github(source)
+            else:
+                output = None
+            if output:
+                self.write_manifest(source, [output])
             gc.collect()
 
         log.info("dataset_download_completed", phase=phase)
 
-    def _download_hf(self, source: DatasetSource) -> None:
+    def _download_hf(self, source: DatasetSource) -> Path | None:
         log.info("downloading_hf_dataset", id=source.id, location=source.location, config=source.config_name)
         try:
             from datasets import load_dataset
@@ -114,10 +149,12 @@ class DatasetDownloader:
                             break
 
             log.info("hf_dataset_saved", id=source.id, samples=count, path=str(out_file))
+            return out_file if out_file.exists() else None
         except Exception as e:
             log.error("hf_download_failed", id=source.id, error=str(e))
+            return None
 
-    def _clone_github(self, source: DatasetSource) -> None:
+    def _clone_github(self, source: DatasetSource) -> Path | None:
         log.info("cloning_github_repo", id=source.id, url=source.location)
         try:
             import git
@@ -134,5 +171,7 @@ class DatasetDownloader:
             else:
                 git.Repo.clone_from(source.location, target_dir)
                 log.info("github_repo_cloned", target=str(target_dir))
+            return target_dir if target_dir.exists() else None
         except Exception as e:
             log.error("github_clone_failed", id=source.id, error=str(e))
+            return None

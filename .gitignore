@@ -1,55 +1,154 @@
-# Python
+# ==============================================================================
+# Kryntis AI — .gitignore
+# ==============================================================================
+
+# ── 1. Python & Bytecode ──────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*.pyo
+*$py.class
+*.so
 *.pyd
-.Python
-*.egg-info/
-dist/
+*.dll
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual environments
+# ── 2. Virtual Environments ───────────────────────────────────────────────────
 .venv/
 venv/
+env/
 ENV/
+env.bak/
+venv.bak/
 
-# Environment — NEVER commit plaintext env files
+# ── 3. Secrets, Keys & Environment Variables ──────────────────────────────────
 .env
-.env-develop
-.env-qa
-.env-stage
-.env-prod
-.env.local
-# Encrypted env files ARE committed (safe)
-# .env-*.enc
-
-# Encryption key — NEVER commit
+.env.*
+!.env.example
 *.key
+*.pem
+*.cert
+*.crt
+.env-encryption.key
+.env-develop
+.env-stage
+.env-qa
+.env-prod
 
-# Model weights & large data
+# ── 4. Trained Models, Weights & Checkpoints ──────────────────────────────────
+checkpoints/
+data/models/checkpoints/
 *.pt
 *.pth
-*.gguf
 *.bin
-data/raw/
-data/processed/
-data/models/
-data/uploads/
-data/knowledge/
+*.onnx
+*.safetensors
+*.gguf
 
-# IDE
-.vscode/
-.idea/
-*.sublime-workspace
+# ── 5. Databases, Memory & Session Context Stores ─────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/sessions/
+data/sessions_test*
+data/repo_test*
+data/chroma/
+data/vectors/
+data/cache/
 
-# OS
-.DS_Store
-Thumbs.db
+# ── 6. Raw & Processed Datasets (Keep data directory structure) ───────────────
+data/raw/*.tar.gz
+data/raw/*.zip
+data/raw/*.parquet
+data/processed/*.npy
+data/processed/*.arrow
 
-# Logs
+# Training / dataset files
+data/raw/*.jsonl
+data/processed/*.jsonl
+
+# Keep directory structure
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# ── 7. Testing, Linting & Type Checking ───────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ── 8. Logs, Profiling & Runtime Artifacts ────────────────────────────────────
+logs/
 *.log
-data/logs/
+*.log.*
+nohup.out
+gmon.out
+.prof
+.benchmarks/
 
-# Secrets
-.credentials*
+# ── 9. IDE & Editor Specifics ─────────────────────────────────────────────────
+# PyCharm
+.idea/workspace.xml
+.idea/shelf/
+.idea/caches/
+.idea/libraries/
+.idea/httpRequests/
+.idea/sonarlint/
+.idea/**/contentModel.xml
+.idea/dataSources/
+.idea/dataSources.local.xml
+
+# VSCode
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+*.code-workspace
+.history/
+
+# ── 10. Operating System Artifacts ────────────────────────────────────────────
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+

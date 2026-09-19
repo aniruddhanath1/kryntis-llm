@@ -195,9 +195,10 @@ async def _call_tool(req_id: Any, name: str, args: dict) -> dict:
             if not text:
                 return _err(req_id, -32602, "Missing required argument: text")
             from kryntis.service.dependencies import get_ingestion_pipeline
+            from kryntis.ingestion.progress import format_progress
             pipeline = get_ingestion_pipeline()
-            job_id = await pipeline.ingest_text(text=text, source_label=source)
-            return _json({"job_id": job_id, "status": "queued"})
+            job = await pipeline.ingest_text(text=text, source_label=source)
+            return _json(format_progress(job))
 
         if name == "kryntis.get_health":
             from kryntis.utils.cache import cache_stats

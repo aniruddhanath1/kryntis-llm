@@ -20,9 +20,50 @@ EXT_LANG_MAP = {
     ".js": "javascript",
     ".ts": "typescript",
     ".go": "go",
+    ".rs": "rust",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".h": "c_header",
+    ".hpp": "cpp_header",
     ".php": "php",
     ".rb": "ruby",
     ".pl": "perl",
+    ".swift": "swift",
+    ".kt": "kotlin",
+    ".dart": "dart",
+    ".r": "r",
+    ".jl": "julia",
+    ".scala": "scala",
+    ".hs": "haskell",
+    ".lua": "lua",
+    ".f90": "fortran",
+    ".f": "fortran",
+    ".cbl": "cobol",
+    ".cob": "cobol",
+    ".erl": "erlang",
+    ".ex": "elixir",
+    ".exs": "elixir",
+    ".clj": "clojure",
+    ".fs": "fsharp",
+    ".ml": "ocaml",
+    ".zig": "zig",
+    ".nim": "nim",
+    ".v": "v",
+    ".pas": "pascal",
+    ".ada": "ada",
+    ".adb": "ada",
+    ".d": "d",
+    ".groovy": "groovy",
+    ".m": "matlab",
+    ".sol": "solidity",
+    ".vy": "vyper",
+    ".sql": "sql",
+    ".vhd": "vhdl",
+    ".vhdl": "vhdl",
+    ".wat": "webassembly",
+    ".wasm": "webassembly",
     ".cls": "apex",
     ".trigger": "apex",
     ".abap": "abap",
@@ -51,6 +92,7 @@ class DatasetProcessor:
         self.processed_dir.mkdir(parents=True, exist_ok=True)
 
     def process_domain(self, domain: str) -> Path:
+        """Process all raw files matching a specific domain into a dedicated JSONL corpus."""
         from kryntis.datasets.catalog import get_catalog_by_domain
         sources = get_catalog_by_domain(domain)
         target_ids = {ds.id for ds in sources}
@@ -90,6 +132,7 @@ class DatasetProcessor:
         return out_file
 
     def process_all(self) -> Path:
+        """Process all raw files across all domains into the unified training corpus."""
         out_file = self.processed_dir / "train_corpus.jsonl"
         log.info("start_dataset_processing", output=str(out_file))
 

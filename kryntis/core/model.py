@@ -1,25 +1,26 @@
 """
-Kryntis Transformer Model — decoder-only architecture built in PyTorch.
+Kryntis Transformer Model — decoder-only architecture built in PyTorch with KV-Cache.
 
 Implements a GPT-style causal language model with:
-- Multi-head causal self-attention (with RoPE positional encoding)
+- Grouped-Query Attention (GQA) with KV-Cache support
+- Rotary Positional Embeddings (RoPE)
 - Pre-norm with RMSNorm (more stable than LayerNorm)
 - SwiGLU feed-forward network
-- Configurable depth, width, heads, context length
-
-This is the *custom* Kryntis model architecture, separate from the
-downloaded base model. It can be fine-tuned on specific domains.
+- Fast autoregressive inference via KVCache
 
 Usage:
-    cfg = KryntisModelConfig(vocab_size=8000, n_layers=6, d_model=256)
+    cfg = KryntisModelConfig(vocab_size=260, n_layers=6, d_model=256)
     model = KryntisTransformer(cfg)
-    logits = model(input_ids)         # (batch, seq_len, vocab_size)
+    logits, new_kvs = model(input_ids)
 """
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 import torch
@@ -31,13 +32,13 @@ from kryntis.utils.logging import get_logger
 log = get_logger(__name__)
 
 
-# ─── Configuration ─────────────────────────────────────────────────────────────
+# ─── Configuration ────────────────────────────────────────────────────────────
 
 @dataclass
 class KryntisModelConfig:
     """Configuration for the Kryntis Transformer."""
 
-    vocab_size: int = 8000
+    vocab_size: int = 260        # Direct UTF-8 byte vocab by default
     n_layers: int = 6
     d_model: int = 256           # Embedding dimension
     n_heads: int = 8             # Attention heads
@@ -49,8 +50,11 @@ class KryntisModelConfig:
     tie_embeddings: bool = True  # Tie input/output embeddings
     norm_eps: float = 1e-6
     pad_token_id: int = 0
+    max_context_len: int = 2048
 
     def __post_init__(self) -> None:
+        if self.max_context_len and not self.context_length:
+            self.context_length = self.max_context_len
         assert self.d_model % self.n_heads == 0, "d_model must be divisible by n_heads"
         assert self.n_heads % self.n_kv_heads == 0, "n_heads must be divisible by n_kv_heads"
 
@@ -63,7 +67,29 @@ class KryntisModelConfig:
 ModelConfig = KryntisModelConfig
 
 
-# ─── RMSNorm ────────────────────────────────────────────────────────────────────
+# ─── KV Cache ─────────────────────────────────────────────────────────────────
+
+@dataclass
+class KVCache:
+    """
+    Key-Value state cache for fast autoregressive decoding.
+    Eliminates redundant prefix computation during incremental generation.
+    """
+    key: torch.Tensor    # (batch, n_kv_heads, seq_len, head_dim)
+    value: torch.Tensor  # (batch, n_kv_heads, seq_len, head_dim)
+
+    @property
+    def seq_len(self) -> int:
+        return self.key.shape[2]
+
+    def update(self, new_k: torch.Tensor, new_v: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Append incoming key/value projections to the cached tensors."""
+        self.key = torch.cat([self.key, new_k], dim=2)
+        self.value = torch.cat([self.value, new_v], dim=2)
+        return self.key, self.value
+
+
+# ─── RMSNorm ──────────────────────────────────────────────────────────────────
 
 class RMSNorm(nn.Module):
     """Root-mean-square layer normalisation (no learnable bias)."""
@@ -78,7 +104,7 @@ class RMSNorm(nn.Module):
         return x * rms * self.weight
 
 
-# ─── Rotary Positional Embeddings ───────────────────────────────────────────────
+# ─── Rotary Positional Embeddings ─────────────────────────────────────────────
 
 def _precompute_freqs(head_dim: int, context_length: int, base: int = 10000) -> torch.Tensor:
     """Precompute RoPE frequency cis tensor."""
@@ -92,8 +118,6 @@ def _apply_rope(
     q: torch.Tensor, k: torch.Tensor, freqs_cis: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply rotary positional embeddings to Q and K."""
-    # q, k: (batch, heads, seq, head_dim)
-    # Cast to complex for rotation
     def rotate(x: torch.Tensor) -> torch.Tensor:
         xc = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
         xc = xc * freqs_cis.unsqueeze(0).unsqueeze(0)  # broadcast over batch, head
@@ -102,14 +126,11 @@ def _apply_rope(
     return rotate(q), rotate(k)
 
 
-# ─── Grouped-Query Attention ─────────────────────────────────────────────────────
+# ─── Grouped-Query Attention ─────────────────────────────────────────────────
 
 class GroupedQueryAttention(nn.Module):
     """
-    Grouped-Query Attention (GQA).
-
-    n_kv_heads < n_heads shares KV projections across groups of query heads,
-    reducing memory during inference.
+    Grouped-Query Attention (GQA) with dynamic KV-Cache support.
     """
 
     def __init__(self, cfg: KryntisModelConfig) -> None:
@@ -132,8 +153,8 @@ class GroupedQueryAttention(nn.Module):
         x: torch.Tensor,
         freqs_cis: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
-        past_kv: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
-    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        kv_cache: Optional[KVCache | tuple[torch.Tensor, torch.Tensor]] = None,
+    ) -> tuple[torch.Tensor, KVCache]:
         B, T, _ = x.shape
 
         q = self.wq(x).view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
@@ -143,30 +164,37 @@ class GroupedQueryAttention(nn.Module):
         # Apply RoPE
         q, k = _apply_rope(q, k, freqs_cis)
 
-        # KV cache support
-        if past_kv is not None:
-            pk, pv = past_kv
-            k = torch.cat([pk, k], dim=2)
-            v = torch.cat([pv, v], dim=2)
-        new_kv = (k, v)
+        # Update or initialise KV cache
+        if kv_cache is not None:
+            if isinstance(kv_cache, KVCache):
+                k, v = kv_cache.update(k, v)
+                new_cache = kv_cache
+            else:
+                pk, pv = kv_cache
+                k = torch.cat([pk, k], dim=2)
+                v = torch.cat([pv, v], dim=2)
+                new_cache = KVCache(key=k, value=v)
+        else:
+            new_cache = KVCache(key=k, value=v)
 
         # Expand KV heads to match query heads
-        k = k.repeat_interleave(self.kv_groups, dim=1)
-        v = v.repeat_interleave(self.kv_groups, dim=1)
+        k_expanded = k.repeat_interleave(self.kv_groups, dim=1)
+        v_expanded = v.repeat_interleave(self.kv_groups, dim=1)
 
-        # Scaled dot-product attention (uses flash attention if available)
+        # Scaled dot-product attention
+        is_causal = (mask is None) and (T > 1) and (k.shape[2] == T)
         attn_out = F.scaled_dot_product_attention(
-            q, k, v,
+            q, k_expanded, v_expanded,
             attn_mask=mask,
             dropout_p=self.dropout.p if self.training else 0.0,
-            is_causal=(mask is None),
+            is_causal=is_causal,
         )
 
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, T, -1)
-        return self.wo(attn_out), new_kv
+        return self.wo(attn_out), new_cache
 
 
-# ─── SwiGLU Feed-Forward ────────────────────────────────────────────────────────
+# ─── SwiGLU Feed-Forward ─────────────────────────────────────────────────────
 
 class SwiGLUFFN(nn.Module):
     """SwiGLU feed-forward: FFN(x) = SiLU(xW₁) ⊙ (xW₃) · W₂"""
@@ -182,10 +210,10 @@ class SwiGLUFFN(nn.Module):
         return self.dropout(self.w2(F.silu(self.w1(x)) * self.w3(x)))
 
 
-# ─── Transformer Block ──────────────────────────────────────────────────────────
+# ─── Transformer Block ───────────────────────────────────────────────────────
 
 class TransformerBlock(nn.Module):
-    """Single pre-norm transformer decoder block."""
+    """Single pre-norm transformer decoder block with KV-Cache."""
 
     def __init__(self, cfg: KryntisModelConfig) -> None:
         super().__init__()
@@ -199,24 +227,19 @@ class TransformerBlock(nn.Module):
         x: torch.Tensor,
         freqs_cis: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
-        past_kv: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
-    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
-        attn_out, new_kv = self.attn(self.attn_norm(x), freqs_cis, mask, past_kv)
+        kv_cache: Optional[KVCache | tuple[torch.Tensor, torch.Tensor]] = None,
+    ) -> tuple[torch.Tensor, KVCache]:
+        attn_out, new_cache = self.attn(self.attn_norm(x), freqs_cis, mask, kv_cache)
         x = x + attn_out
         x = x + self.ffn(self.ffn_norm(x))
-        return x, new_kv
+        return x, new_cache
 
 
-# ─── Full Transformer ────────────────────────────────────────────────────────────
+# ─── Full Transformer ────────────────────────────────────────────────────────
 
 class KryntisTransformer(nn.Module):
     """
     Kryntis decoder-only Transformer language model.
-
-    Parameters are approximately:
-        6L-256d-8h  → ~10M params  (default, ultra-lightweight)
-        12L-512d-8h → ~85M params  (medium)
-        24L-768d-12h → ~350M params (large)
     """
 
     def __init__(self, cfg: KryntisModelConfig) -> None:
@@ -252,52 +275,73 @@ class KryntisTransformer(nn.Module):
     def forward(
         self,
         input_ids: torch.Tensor,
-        past_kvs: Optional[list[tuple[torch.Tensor, torch.Tensor]]] = None,
+        kv_caches: Optional[list[KVCache]] = None,
         return_logits: bool = True,
-    ) -> tuple[torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
+    ) -> tuple[torch.Tensor, list[KVCache]]:
         """
-        Forward pass.
+        Forward pass with optional KV cache for accelerated decoding.
 
         Args:
             input_ids: (batch, seq_len) token IDs.
-            past_kvs: Optional KV cache from previous steps.
+            kv_caches: Optional list of KVCache per layer from previous steps.
             return_logits: If True return logits else embeddings.
 
         Returns:
-            (logits or embeddings, new_kvs)
+            (logits or embeddings, updated_kv_caches)
         """
         B, T = input_ids.shape
-        offset = 0 if past_kvs is None else past_kvs[0][0].size(2)
+        offset = 0 if not kv_caches else kv_caches[0].seq_len
 
         x = self.dropout(self.embedding(input_ids))
         freqs = self.freqs_cis[offset: offset + T]
 
-        new_kvs: list[tuple[torch.Tensor, torch.Tensor]] = []
+        new_caches: list[KVCache] = []
         for i, block in enumerate(self.blocks):
-            pkv = past_kvs[i] if past_kvs else None
-            x, kv = block(x, freqs, past_kv=pkv)
-            new_kvs.append(kv)
+            cache_i = kv_caches[i] if kv_caches and i < len(kv_caches) else None
+            x, updated_cache = block(x, freqs, kv_cache=cache_i)
+            new_caches.append(updated_cache)
 
         x = self.norm(x)
         if return_logits:
-            return self.lm_head(x), new_kvs
-        return x, new_kvs
+            return self.lm_head(x), new_caches
+        return x, new_caches
+
+    def generate_with_cache(
+        self,
+        prompt_ids: torch.Tensor,
+        max_new_tokens: int = 128,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+    ) -> torch.Tensor:
+        """
+        Fast autoregressive token generation using KV-cache.
+        """
+        self.eval()
+        generated = prompt_ids.clone()
+        kv_caches: list[KVCache] | None = None
+
+        with torch.no_grad():
+            # Prefill phase
+            logits, kv_caches = self.forward(prompt_ids, kv_caches=None)
+            next_token_logits = logits[:, -1, :] / max(1e-5, temperature)
+            next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+            generated = torch.cat([generated, next_token], dim=1)
+
+            # Incremental decode phase using cached KV states
+            for _ in range(max_new_tokens - 1):
+                logits, kv_caches = self.forward(next_token, kv_caches=kv_caches)
+                next_token_logits = logits[:, -1, :] / max(1e-5, temperature)
+                next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+                generated = torch.cat([generated, next_token], dim=1)
+
+        return generated
 
     def get_loss(
         self,
         input_ids: torch.Tensor,
         labels: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """
-        Compute cross-entropy language modelling loss.
-
-        Args:
-            input_ids: (batch, seq) input tokens.
-            labels: (batch, seq) target tokens. If None, uses shifted input_ids.
-
-        Returns:
-            Scalar loss tensor.
-        """
+        """Compute cross-entropy language modelling loss."""
         logits, _ = self.forward(input_ids)
         if labels is None:
             labels = torch.roll(input_ids, -1, dims=1)
@@ -317,22 +361,16 @@ class KryntisTransformer(nn.Module):
 
     def save_checkpoint(self, path: str) -> None:
         """Save model weights and config."""
-        import json
-        from pathlib import Path
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         torch.save(self.state_dict(), str(p) + ".pt")
         with open(str(p) + ".config.json", "w") as f:
-            import dataclasses
             json.dump(dataclasses.asdict(self.cfg), f, indent=2)
         log.info("model_checkpoint_saved", path=path)
 
     @classmethod
-    def load_checkpoint(cls, path: str) -> "KryntisTransformer":
+    def load_checkpoint(cls, path: str) -> KryntisTransformer:
         """Load model from checkpoint."""
-        import json
-        import dataclasses
-        from pathlib import Path
         p = Path(path)
         with open(str(p) + ".config.json") as f:
             cfg_dict = json.load(f)

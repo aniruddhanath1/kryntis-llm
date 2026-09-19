@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "kryntis-llm"
-version = "0.1.0"
+version = "1.0.0"
 description = "Kryntis AI — Lightweight LLM platform with RAG, memory, continual learning, and internet research"
 readme = "README.md"
 requires-python = ">=3.10"

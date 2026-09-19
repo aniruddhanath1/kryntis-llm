@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterator
 
+from kryntis.chunking.audio_chunker import AudioChunker
 from kryntis.chunking.base import BaseChunker, Chunk
 from kryntis.chunking.code_chunker import CodeChunker
 from kryntis.chunking.docx_chunker import DOCXChunker
@@ -20,6 +21,7 @@ from kryntis.chunking.pdf_chunker import PDFChunker
 from kryntis.chunking.pptx_chunker import PPTXChunker
 from kryntis.chunking.spreadsheet_chunker import SpreadsheetChunker
 from kryntis.chunking.text_chunker import TextChunker
+from kryntis.chunking.video_chunker import VideoChunker
 from kryntis.utils.config import get_config
 from kryntis.utils.logging import get_logger
 
@@ -53,6 +55,8 @@ class ChunkRouter:
             JSONChunker(size, overlap, min_size),
             CodeChunker(size, overlap, min_size),
             ImageChunker(size, overlap, min_size),
+            AudioChunker(size, overlap, min_size),
+            VideoChunker(size, overlap, min_size),
             TextChunker(size, overlap, min_size),  # Fallback last
         ]
 

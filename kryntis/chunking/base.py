@@ -1,83 +1,77 @@
 """
-Chunking engine base classes and Chunk dataclass.
+Base Chunker — defines the Chunk dataclass and BaseChunker abstract class.
 
-All chunkers produce a uniform list of Chunk objects that carry
-both the text payload and rich metadata for RAG retrieval.
+Every chunker in kryntis/chunking/ inherits from BaseChunker.
 """
 
 from __future__ import annotations
 
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from kryntis.utils.logging import get_logger
+
+log = get_logger(__name__)
+
 
 @dataclass
 class Chunk:
-    """
-    A discrete unit of content extracted from a document.
-
-    Attributes:
-        text: The raw text content of the chunk.
-        chunk_id: Unique identifier (source_hash + position).
-        source_id: Identifier of the parent document.
-        source_path: File path or URL of origin.
-        chunk_index: Position within the document (0-based).
-        total_chunks: Total chunks in this document.
-        page: Page number (PDFs, DOCX) or slide (PPTX).
-        section: Section/heading hierarchy (e.g. "Chapter 1 > Intro").
-        chunk_type: "text" | "table" | "code" | "image_caption" | "header".
-        language: Detected language code (e.g. "en").
-        token_count: Approximate token count.
-        parent_id: ID of parent chunk (for hierarchical chunking).
-        metadata: Arbitrary extra key-value pairs.
-    """
+    """A chunk of text extracted from a document with full provenance."""
 
     text: str
-    chunk_id: str
-    source_id: str
-    source_path: str
-    chunk_index: int = 0
-    total_chunks: int = 1
-    page: int | None = None
-    section: str = ""
-    chunk_type: str = "text"
-    language: str = "en"
-    token_count: int = 0
-    parent_id: str | None = None
+    chunk_id: str                   # Deterministic hash of source_id + index
+    source_id: str                  # Stable document identifier (e.g. file hash or UUID)
+    source_path: str                # Original file path or URL
+    chunk_index: int                # 0-based position in document
+    total_chunks: int               # Total chunks for this document (-1 if streaming)
+
+    # Optional metadata
+    page: int | None = None         # PDF/PPTX page or slide number (1-based)
+    section: str = ""               # Header/section title if available
+    language: str = ""              # Detected programming/human language
+    mime_type: str = ""
+    token_count: int = 0            # Approximate token count (len(text) // 4)
     metadata: dict = field(default_factory=dict)
+    chunk_type: str = "text"        # "text" | "code" | "table" | "image" | "audio" | "video"
 
     def __post_init__(self) -> None:
         if not self.token_count:
-            # Approximate: 1 token ≈ 4 chars
             self.token_count = max(1, len(self.text) // 4)
 
     def to_dict(self) -> dict:
-        """Serialise to a plain dict (for storage)."""
         return {
             "chunk_id": self.chunk_id,
-            "text": self.text,
             "source_id": self.source_id,
             "source_path": self.source_path,
             "chunk_index": self.chunk_index,
             "total_chunks": self.total_chunks,
+            "text": self.text,
             "page": self.page,
             "section": self.section,
-            "chunk_type": self.chunk_type,
             "language": self.language,
+            "mime_type": self.mime_type,
             "token_count": self.token_count,
-            "parent_id": self.parent_id,
+            "chunk_type": self.chunk_type,
             "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Chunk":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
 class BaseChunker(ABC):
     """
-    Abstract chunker interface.
+    Abstract base class for all document chunkers.
 
-    Every format-specific chunker must implement `chunk_file()`,
-    which streams Chunk objects without loading the full file into RAM.
+    Subclasses must implement:
+      - chunk_file(path, source_id) -> Iterator[Chunk]
+      - supported_extensions -> list[str]
+
+    Subclasses should respect self.chunk_size and self.chunk_overlap.
     """
 
     def __init__(
@@ -93,10 +87,10 @@ class BaseChunker(ABC):
     @abstractmethod
     def chunk_file(self, path: Path, source_id: str) -> Iterator[Chunk]:
         """
-        Stream Chunk objects from a file.
+        Extract chunks from a file on disk.
 
         Args:
-            path: Path to the file on disk.
+            path: Absolute path to the file.
             source_id: Stable identifier for the source document.
 
         Yields:
@@ -110,13 +104,18 @@ class BaseChunker(ABC):
         """File extensions this chunker handles (e.g. ['.pdf'])."""
         ...
 
-    # ── Utilities ──────────────────────────────────────────────────────────
+    # ── Utilities ────────────────────────────────────────────────────────────
 
     @staticmethod
     def _make_chunk_id(source_id: str, index: int) -> str:
-        import xxhash
-        raw = f"{source_id}:{index}"
-        return xxhash.xxh64_hexdigest(raw)
+        import hashlib
+        try:
+            import xxhash
+            raw = f"{source_id}:{index}".encode("utf-8")
+            return xxhash.xxh64_hexdigest(raw)
+        except Exception:
+            raw = f"{source_id}:{index}".encode("utf-8")
+            return hashlib.sha256(raw).hexdigest()[:16]
 
     def _split_text(self, text: str) -> list[str]:
         """

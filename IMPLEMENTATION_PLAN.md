@@ -1,237 +1,113 @@
-# Kryntis AI — Implementation Plan (v1 & v2 History)
+# Kryntis AI — Architecture & Implementation Plan
 
-## Revision History
+## Current Target: Version 1.0.0 (Production Release)
 
-- **v1.0 (2026-08-13)**: Initial architecture using GGUF base models & BPE tokenization.
-- **v3.0 (2026-08-21)**: Tokenizer-Free Byte / ASCII Direct Architecture (`ByteDirectProcessor`). Maps characters and words directly to UTF-8 / ASCII byte integers (0–255) and 8-bit binary representations, eliminating all subword and word tokenizers.
+### Core Architecture Highlights
 
----
+1. **Tokenizer-Free Byte / ASCII Direct Architecture (`ByteDirectProcessor`)**:
+   - Maps text directly to UTF-8 / ASCII byte integers (0–255) and binary representations with a fixed vocabulary size of 260 tokens (256 bytes + 4 control tokens).
+   - Eliminates subword dictionaries, external tokenizers, and subword splitting overhead.
 
-# Version 3.0 (Current Version) — Tokenizer-Free Byte / ASCII Direct Architecture
+2. **SOLID Persistence Layer & Repository Pattern (`kryntis/repositories/`)**:
+   - Clean separation of concerns following SOLID principles.
+   - Abstract interfaces: `IRepository`, `IDocumentRepository`, `ISessionRepository`, `IKnowledgeRepository`.
+   - Concrete persistent SQLite and in-memory implementations.
 
-## Key v3.0 Architecture Innovations
+3. **Dynamic Model Load Balancers (`kryntis/core/load_balancer.py`)**:
+   - `RoundRobinLoadBalancer`, `WeightedLoadBalancer`, and `LeastLatencyLoadBalancer` for distributing inference requests across local instances and providers.
 
-1. **Tokenizer-Free Direct Byte Processing (`kryntis/core/byte_processor.py`)**:
-   - Completely eliminates subword dictionaries, vocabulary building, and subword splitting algorithms.
-   - Text is read and processed directly as **raw ASCII / UTF-8 byte values (0–255)** and **8-bit binary matrices**.
-   - Language model vocabulary is fixed to 256 bytes + 4 special control symbols (`VOCAB_SIZE = 260`), matching low-level machine execution and assembly/binary level comprehension.
+4. **Multi-Strategy Rate Limiters (`kryntis/security/rate_limiter.py`)**:
+   - `TokenBucketRateLimiter` (burst capacity and smooth token replenishment).
+   - `SlidingWindowRateLimiter` (precise rolling-window request tracking).
+   - `MultiTierRateLimiter` (hierarchical client IP + session rate limiting).
 
-2. **Sequential Pretraining in Tokenizer-Free Mode**:
-   - **Task 1 (English Natural Language & Grammar)**:
-     ```bash
-     python main.py download-datasets --domain english
-     python main.py process-datasets --domain english
-     python main.py train --domain english
-     ```
-   - **Task 2 (World Regional Languages)**:
-     ```bash
-     python main.py download-datasets --domain regional_languages
-     python main.py process-datasets --domain regional_languages
-     python main.py train --domain regional_languages --resume
-     ```
+5. **Virtual 5B Single-Session Context Stream (`kryntis/memory/session_context_manager.py`)**:
+   - Decouples raw prompt context limits from overall session state.
+   - Manages up to 5,000,000,000 max context state per session via SQLite disk storage, streaming event pagination, and hierarchical semantic chunk retrieval.
 
-3. **Task 3: PostgreSQL + pgvector VectorDB Integration**:
-   - Integrated [`kryntis/knowledge/pgvector_adapter.py`](file:///e:/Personal/Kryntis%20AI/kryntis-llm/kryntis/knowledge/pgvector_adapter.py) for PostgreSQL vector databases.
+6. **Guaranteed Universal Chunking (`kryntis/chunking/chunk_router.py`)**:
+   - All text inputs, file uploads, continual learning items, and audio/video assets route through `ChunkRouter`.
+   - Audio (.mp3, .wav, .flac, .ogg, .m4a, .aac) and Video (.mp4, .mkv, .avi, .mov, .webm) chunkers enforce a strict **10 MB max** limit.
+   - Document chunkers enforce a **100 MB max** limit.
 
----
+7. **Voice Synthesis & Transcription Engine (`kryntis/voice/`)**:
+   - `TextToSpeechEngine` (native harmonic formant wave synthesizer + pyttsx3 fallback).
+   - `SpeechToTextEngine` (acoustic feature decoder + SpeechRecognition fallback).
+   - End-to-end voice assistant conversation pipeline.
 
-## Key v2.2 Training & System Tasks
+8. **Extensible AI Tool Registry (`kryntis/tools/`)**:
+   - Dynamic tool registration with OpenAI Function Calling & MCP schema export.
+   - 9 built-in sandboxed tools: `code_interpreter`, `calculator`, `fs_read_file`, `fs_list_dir`, `web_fetch`, `sql_query`, `http_request`, `system_info`, and `analyze_media`.
 
-### Task 1: English Natural Language & Grammar Pretraining
-- **Goal**: Download English Grammar, train on it sequentially, and master natural English sentences, words, and characters.
-- **Datasets**: `salesforce/wikitext`, `allenai/c4`.
-- **Engine**: Natural English Word-Level Tokenizer (`NaturalEnglishTokenizer`).
-- **Commands**:
-  ```bash
-  python main.py download-datasets --domain english
-  python main.py process-datasets --domain english
-  python main.py train-tokenizer --natural
-  python main.py train --domain english
-  ```
+9. **14 Sector Pretraining Domains & Synthetic Datasets (`kryntis/datasets/`)**:
+   - Domains: `agi`, `coding` (40+ world languages), `healthcare`, `fintech`, `military`, `government`, `media`, `crm`, `sysadmin`, `security`, `english`, `regional_languages`, and `emotion`.
+   - Local synthetic JSONL generators generating standalone training corpora in `data/raw/` and `data/processed/`.
 
-### Task 2: World Regional Human-Speaking Languages Pretraining
-- **Goal**: Download and train on world regional natural human-speaking languages.
-- **Datasets**: `allenai/c4` (mC4 Multilingual). Completely public & unauthenticated (no Hugging Face API key or authentication needed).
-- **Commands**:
-  ```bash
-  python main.py download-datasets --domain regional_languages
-  python main.py process-datasets --domain regional_languages
-  python main.py train --domain regional_languages --resume
-  ```
-
-### Task 3: PostgreSQL + pgvector VectorDB Integration
-- **Goal**: VectorDB adapter (`PGVectorAdapter`) for storing embeddings and document datasets directly in a PostgreSQL instance using `pgvector`.
-- **Implementation**: [`kryntis/knowledge/pgvector_adapter.py`](file:///e:/Personal/Kryntis%20AI/kryntis-llm/kryntis/knowledge/pgvector_adapter.py).
-- **Configuration**: Set `vector_backend = "postgres"` or `KRYNTIS_VECTOR_BACKEND=postgres`.
+10. **Interactive OpenAPI / Swagger Documentation (`kryntis/service/app.py`)**:
+    - Swagger UI (`/docs`), ReDoc (`/redoc`), and OpenAPI 3.1 schema.
 
 ---
 
-## Key v2.1 Architecture Innovations
+## 5-Year Model Release Roadmap
 
-1. **Domain-Sequential One-by-One Pretraining**:
-   - Training is modularized into discrete domains (`english`, `emotion`, `coding`, `security`, `healthcare`).
-   - Prevents memory spikes and allows granular, step-by-step training per domain.
-   - Command flags: `python main.py download-datasets --domain english`, `python main.py process-datasets --domain english`, `python main.py train --domain english`.
-
-2. **Multi-Segment Intelligence Expansion**:
-   - **Coding**: Software engineering, multi-language coding, patterns (Python, Java, C#, Apex, ABAP, Dynamics 365).
-   - **Security & Device Patching**: Vulnerability assessment, patch analysis, device hardware security QA (`sec-qa`).
-   - **Healthcare**: Clinical medical QA & medical knowledge corpus (`med-qa`).
-   - **Emotional Intelligence (EQ)**: Conversational emotion grounding & empathy (`dair-ai/emotion`).
-   - **Natural English**: Grammar, syntax & structure (`wikitext-103`, `c4`).
-
-3. **Autonomous Reasoning & RAG Real-Time Result Verification**:
-   - Hybrid dense/sparse retrieval with RRF rank fusion guarantees facts are sourced in real-time, eliminating hallucinations.
-   - Continual Learning pipeline allows the AI brain to dynamically adapt and absorb new knowledge over time.
+| Year | Model Release Name | Architectural Focus |
+|---|---|---|
+| **2026** | **Kryntis 1.0 Genesis** | Sovereign Multi-Domain Core, 5B Virtual Session Context, Full AI Tooling & Voice |
+| **2027** | **Kryntis 2.0 Aether** | Multimodal Streaming Sensory Matrix, Real-time Audio-Visual Synthesis |
+| **2028** | **Kryntis 3.0 Synapse** | Autonomous Hierarchical Reasoning, Meta-Cognition, Dynamic Symbolic AGI |
+| **2029** | **Kryntis 4.0 Quantum** | Entangled Polyglot Architecture, Universal Code Execution & Self-Correction |
+| **2030** | **Kryntis 5.0 Omnis** | Universal Sovereign General Intelligence, Zero-Latency Federated Edge Agents |
 
 ---
 
-1. **No External API Dependencies**: 100% self-contained Python ML engine running locally.
-2. **Natural Word-Level Tokenizer (`kryntis/core/word_tokenizer.py`)**: Replaced BPE subword splitting with natural English word/lexical tokenization so the model processes language directly as whole human words and punctuation.
-3. **Emotional Intelligence Engine (`kryntis/core/emotional_intelligence.py`)**:
-   - Detects user sentiment, emotional state (Joy, Sadness, Anger, Fear, Frustration, Curiosity), valence, and arousal.
-   - Dynamically injects empathetic directives into the Orchestrator prompt pipeline.
-4. **Natural English & Grammar Datasets**:
-   - Integrated `WikiText-103`, `C4-English`, and `Empathetic Dialogues` datasets alongside programming datasets.
-5. **Phase 1 & Phase 2 Multi-Language Pretraining**:
-   - Phase 1: Natural English, Python, Java, C#, JavaScript, Go.
-   - Phase 2: Salesforce Apex, SAP ABAP, Dynamics 365, PHP, Ruby, Perl.
-6. **Strict Resource-Aware Guard (`kryntis/utils/task_queue.py`)**:
-   - Maximum 1 heavy process (training, dataset download, processing) at a time.
-   - Pre-flight RAM safety check: pauses/rejects jobs if available RAM < 1000 MB.
-   - Bounded worker count (defaults to 1 worker on <= 8 GB RAM machines).
-   - Streaming/chunk-based processing with explicit `gc.collect()` garbage collection after heavy stages.
-
----
-
-## v2 System Architecture Diagram
-
-```
-[React Frontend] ──HTTP──▶ [Java Spring Boot API]
-                                    │
-                                HTTP/REST
-                                    │
-                           ┌────────▼──────────────────────────┐
-                           │  Kryntis AI Engine v2 (this repo) │
-                           │  Internal FastAPI Service         │
-                           │                                   │
-                           │  Orchestrator + EQ Engine         │
-                           │  ├─ Emotional Intelligence (EQ)   │
-                           │  ├─ Intent Router                 │
-                           │  └─ ReAct Agent Loop              │
-                           │                                   │
-                           │  Core LLM                         │
-                           │  ├─ Natural Word Tokenizer        │
-                           │  ├─ Decoder Transformer (Scratch) │
-                           │  └─ Local PyTorch Provider        │
-                           │                                   │
-                           │  Datasets & Learning              │
-                           │  ├─ English Grammar (Wiki/C4)     │
-                           │  ├─ Empathetic Dialogues          │
-                           │  └─ Code (HF + GitHub)            │
-                           └───────────────────────────────────┘
-```
-
----
-
-## Build Commands (v2)
+## Build & Sequential Training Commands
 
 ```bash
-# 1. Download English Grammar + Emotional + Coding Datasets
-python main.py download-datasets --phase 1
+# 1. Generate Local Synthetic Datasets across all 14 domains
+python main.py generate-datasets
 
-# 2. Process Datasets into Clean JSONL Corpus
-python main.py process-datasets
+# 2. Process Domain Datasets into Clean JSONL Corpora
+python main.py process-datasets --domain coding
+python main.py process-datasets --domain agi
+python main.py process-datasets --domain healthcare
+python main.py process-datasets --domain fintech
+python main.py process-datasets --domain military
+python main.py process-datasets --domain government
+python main.py process-datasets --domain media
 
-# 3. Train Natural Word-Level Tokenizer
-python main.py train-tokenizer
+# 3. Train Sequentially via Python Shell (No Ollama Required)
+python main.py train --domain coding
+python main.py train --domain agi
+python main.py train --domain healthcare
+python main.py train --domain fintech
+python main.py train --domain military
+python main.py train --domain government
+python main.py train --domain media
 
-# 4. Train Model from Scratch
-python main.py train
+# 4. Interactive Human Teaching & Fine-Tuning
+python main.py train-interactive
+python main.py train-user-input
 
-# 5. Serve Local FastAPI Server
+# 5. Serve Standalone Local API with Swagger UI
 python main.py serve
 ```
 
 ---
 
-# Version 1.0 (Historical Architecture)
+## Historical Version Archive
 
-## Project Scope (v1)
+### Version 3.0 (Historical)
+- Tokenizer-Free Byte / ASCII Direct Architecture (`ByteDirectProcessor`).
+- Hybrid RAG: BM25 + dense vector retrieval with RRF + cross-encoder reranking.
+- Three-tier memory with consolidator.
+- Internet research fallback (DuckDuckGo + Brave Search).
+- Continual learning confidence-gated pipeline.
 
-| Layer | This Repo | Later |
-|-------|-----------|-------|
-| AI Engine (LLM, RAG, Memory, Chunking, Learning…) | ✅ Built here | — |
-| Internal AI Service (thin FastAPI, called by Java) | ✅ Built here | — |
-| Business APIs | — | Java Spring Boot |
-| User-facing Frontend | — | React |
-| Auth / User management | — | Java Spring Boot |
+### Version 2.0 (Historical)
+- Natural-word tokenizer (`NaturalEnglishTokenizer`).
+- ChromaDB disk persistence.
+- pgvector PostgreSQL adapter.
+- Multi-format document ingestion pipeline (PDF, DOCX, PPTX, XLSX, HTML, JSON, code, images).
 
----
-
-## v1 Architecture Diagram
-
-```
-[React Frontend] ──HTTP──▶ [Java Spring Boot API]
-                                    │
-                                HTTP/REST
-                                    │
-                           ┌────────▼──────────────────────────┐
-                           │  Kryntis AI Engine  (this repo)    │
-                           │  Internal FastAPI Service           │
-                           │                                    │
-                           │  Orchestrator                      │
-                           │  ├─ Intent Router                  │
-                           │  ├─ Task Planner                   │
-                           │  └─ Agent Loop (ReAct)             │
-                           │                                    │
-                           │  LLM Core                         │
-                           │  ├─ Tokenizer (scratch BPE)        │
-                           │  ├─ Transformer model              │
-                           │  ├─ Inference Engine               │
-                           │  └─ Model Manager (load/unload)    │
-                           │                                    │
-                           │  RAG Engine                       │
-                           │  ├─ Embedder                      │
-                           │  ├─ Retriever (dense + sparse)     │
-                           │  └─ Reranker                      │
-                           │                                    │
-                           │  Memory                           │
-                           │  ├─ Short-term (conv buffer)       │
-                           │  ├─ Long-term (semantic vector)    │
-                           │  └─ Episodic                      │
-                           │                                    │
-                           │  Chunking Engine                  │
-                           │  ├─ PDF, DOCX, PPTX               │
-                           │  ├─ XLSX, CSV, JSON, HTML         │
-                           │  └─ Code, TXT, Images             │
-                           │                                    │
-                           │  Internet Research Pipeline        │
-                           │  └─ Search→Fetch→Validate→Cite    │
-                           │                                    │
-                           │  Knowledge Store                  │
-                           │  ├─ ChromaDB (vector)             │
-                           │  └─ SQLite (metadata/provenance)  │
-                           │                                    │
-                           │  Continual Learning               │
-                           │  Security · Evaluation            │
-                           └───────────────────────────────────┘
-```
-
----
-
-## v1 Technology Stack
-
-| Component | Library |
-|-----------|---------|
-| Core ML | PyTorch |
-| Base Model | TinyLlama-1.1B-Q4 via `llama-cpp-python` |
-| Custom Tokenizer | Pure Python BPE + tiktoken |
-| Embeddings | `sentence-transformers` (all-MiniLM-L6-v2) |
-| Vector DB | ChromaDB (disk-persistent) |
-| Relational DB | SQLite via `aiosqlite` |
-| Internal API | FastAPI + uvicorn |
-
----
-
-*Last updated: 2026-08-13 (Version 2.0)*
+### Version 1.0 (Historical)
+- Initial scratch decoder Transformer with BPE tokenization.

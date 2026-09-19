@@ -1,5 +1,5 @@
 """
-Continual Learning — queues approved knowledge for incremental ingestion.
+Continual Learning — queues approved knowledge for incremental chunked ingestion.
 """
 
 from __future__ import annotations
@@ -34,10 +34,10 @@ class ContinualLearner:
     Manages the continual learning queue.
 
     New facts from internet research, conversation, or documents
-    are queued as candidates. Approved candidates are persisted
+    are queued as candidates. Approved candidates are chunked and persisted
     into long-term memory and the vector store.
 
-    This ensures Kryntis AI only learns from validated information.
+    This ensures Kryntis AI only learns from validated, chunked information.
     """
 
     def __init__(
@@ -78,11 +78,17 @@ class ContinualLearner:
         return candidate
 
     async def process_approved(self) -> int:
-        """Persist all approved candidates to long-term memory."""
+        """Persist all approved candidates to chunked ingestion pipeline and long-term memory."""
         approved = [c for c in self._queue if c.approved and c.confidence >= self._min_confidence]
         count = 0
         for candidate in approved:
             try:
+                # 1. Ingest through chunked pipeline
+                await self._pipeline.ingest_text(
+                    text=candidate.content,
+                    source_label=f"continual-{candidate.source[:20]}",
+                )
+                # 2. Store in semantic long-term memory
                 await self._lt.store(
                     content=candidate.content,
                     session_id="learning",
@@ -97,6 +103,7 @@ class ContinualLearner:
         return count
 
     def approve(self, candidate_id: str) -> bool:
+        """Approve a pending learning candidate by ID."""
         for c in self._queue:
             if c.candidate_id == candidate_id:
                 c.approved = True
@@ -104,7 +111,9 @@ class ContinualLearner:
         return False
 
     def list_pending(self) -> list[LearningCandidate]:
+        """Return all unapproved learning candidates."""
         return [c for c in self._queue if not c.approved]
 
     def list_approved(self) -> list[LearningCandidate]:
+        """Return all approved learning candidates."""
         return [c for c in self._queue if c.approved]

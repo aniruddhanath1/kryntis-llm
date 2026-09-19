@@ -8,6 +8,8 @@ Handles up to 10 files simultaneously, max 100 MB per file.
 from __future__ import annotations
 
 import asyncio
+import os
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -124,6 +126,30 @@ class IngestionPipeline:
         gc.collect()
         log_memory("ingestion_end")
         return job
+
+    async def ingest_text(self, text: str, source_label: str = "text") -> IngestionJob:
+        """Ingest direct text through the same validated chunking path as files.
+
+        Args:
+            text: Text content to chunk, embed, and store.
+            source_label: Human-readable label used in the temporary filename.
+
+        Raises:
+            ValueError: If text contains no non-whitespace content.
+        """
+        if not text.strip():
+            raise ValueError("Text input must not be empty")
+        safe_label = "".join(char for char in source_label if char.isalnum() or char in "-_")
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=f"-{safe_label or 'text'}.txt", encoding="utf-8", delete=False
+        ) as handle:
+            handle.write(text)
+            path = Path(handle.name)
+        try:
+            return await self.ingest_files([path])
+        finally:
+            if path.exists():
+                os.unlink(path)
 
     async def _ingest_one(self, path: Path, job: IngestionJob) -> None:
         """Ingest a single file into the knowledge store."""

@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kryntis: Train All Domains Together",
+      "type": "shell",
+      "command": "python main.py process-datasets && python main.py train",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train Coding Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain coding && python main.py train --domain coding",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train AGI Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain agi && python main.py train --domain agi",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train Healthcare Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain healthcare && python main.py train --domain healthcare",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train FinTech Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain fintech && python main.py train --domain fintech",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train Military Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain military && python main.py train --domain military",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train Government Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain government && python main.py train --domain government",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train Media Domain",
+      "type": "shell",
+      "command": "python main.py process-datasets --domain media && python main.py train --domain media",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Run Server (FastAPI)",
+      "type": "shell",
+      "command": "python main.py serve",
+      "problemMatcher": []
+    }
+  ]
+}
