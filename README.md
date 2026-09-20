@@ -268,13 +268,13 @@ if (self.step + 1) % self.cfg.grad_accum_steps == 0:
 
 [`GroundingVerifier`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L28-L98) uses rule-based checks for short or ambiguous queries. A non-greeting query with fewer than three words requires clarification:
 
-$$\operatorname{clarify}(q) = \begin{cases} \text{true}, & |\operatorname{words}(q)| < 3 \\ \text{false}, & \text{otherwise} \end{cases}$$
+$$\text{clarify}(q) = \begin{cases} \text{true}, & |\text{words}(q)| < 3 \\ \text{false}, & \text{otherwise} \end{cases}$$
 
 When clarification is required, the verifier returns a confidence score of $0.4$; otherwise, it returns $0.9$.
 
 For generated responses with reference chunks, the verifier calculates lexical overlap:
 
-$$r = \frac{\left| \left\{ w \in W_{\mathrm{response}} : |w| > 4 \land w \in T_{\mathrm{references}} \right\} \right|}{\max(1, |W_{\mathrm{response}}|)}$$
+$$r = \frac{\big| \{ w \in W_{\text{response}} : |w| > 4 \land w \in T_{\text{references}} \} \big|}{\max(1, |W_{\text{response}}|)}$$
 
 The response is considered grounded when:
 
@@ -288,7 +288,7 @@ If no reference chunks are supplied, the current implementation returns `is_grou
 
 #### Code References & Implementation Blocks
 
-- **Query Ambiguity Evaluation ($\operatorname{clarify}(q)$):** [`GroundingVerifier.evaluate_query`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L34-L67) in [`kryntis/orchestrator/grounding_verifier.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py)
+- **Query Ambiguity Evaluation ($\text{clarify}(q)$):** [`GroundingVerifier.evaluate_query`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L34-L67) in [`kryntis/orchestrator/grounding_verifier.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py)
 ```python
 def evaluate_query(self, user_query: str, retrieved_sources: Sequence[dict] | None = None) -> GroundingCheckResult:
     query_clean = user_query.strip().lower()
