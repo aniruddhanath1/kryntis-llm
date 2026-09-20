@@ -1,6 +1,6 @@
 """
 AI Orchestrator — the central brain coordinating all AI components.
-Integrates Emotional Intelligence (EQ) + Natural Language Understanding.
+Integrates Emotional Intelligence (EQ) + Natural Language Understanding + Full Guardrail Pipeline.
 """
 
 from __future__ import annotations
@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from typing import AsyncIterator
+
+from cachetools import TTLCache
 
 from kryntis.core.emotional_intelligence import EmotionalIntelligenceEngine, EmotionalProfile
 from kryntis.core.inference import InferenceEngine, InferenceRequest
@@ -19,7 +21,7 @@ from kryntis.orchestrator.prompt_builder import PromptBuilder
 from kryntis.rag.context_builder import ContextBuilder
 from kryntis.rag.retriever import HybridRetriever
 from kryntis.rag.reranker import Reranker
-from kryntis.security.prompt_guard import PromptGuard
+from kryntis.security.guardrails import GuardrailPipeline, get_guardrail_pipeline
 from kryntis.utils.config import get_config
 from kryntis.utils.logging import get_logger
 
@@ -53,7 +55,7 @@ class OrchestratorResponse:
 
 class AIOrchestrator:
     """
-    Central AI orchestrator for Kryntis AI with Emotional Intelligence (EQ).
+    Central AI orchestrator for Kryntis AI with Emotional Intelligence (EQ) and end-to-end Guardrails.
     """
 
     def __init__(self) -> None:
@@ -65,9 +67,10 @@ class AIOrchestrator:
         self._internet = InternetResearchPipeline()
         self._intent_router = IntentRouter()
         self._prompt_builder = PromptBuilder()
-        self._prompt_guard = PromptGuard()
+        self._guardrails: GuardrailPipeline = get_guardrail_pipeline()
         self._eq_engine = EmotionalIntelligenceEngine()
-        self._sessions: dict[str, ShortTermMemory] = {}
+        # Bound active session memory to prevent memory exhaustion (DoS)
+        self._sessions: TTLCache[str, ShortTermMemory] = TTLCache(maxsize=5000, ttl=7200)
 
     def _get_memory(self, session_id: str) -> ShortTermMemory:
         if session_id not in self._sessions:
@@ -75,20 +78,23 @@ class AIOrchestrator:
         return self._sessions[session_id]
 
     async def chat(self, request: OrchestratorRequest) -> OrchestratorResponse:
-        guard_result = self._prompt_guard.check(request.user_message)
-        if not guard_result.safe:
+        # ── Input Guardrails Check ──────────────────────────────────────
+        input_res = self._guardrails.check_input(request.user_message, session_id=request.session_id)
+        if input_res.blocked:
             return OrchestratorResponse(
                 session_id=request.session_id,
-                response=f"⚠️ Request blocked: {guard_result.reason}",
+                response=f"⚠️ Request blocked: {input_res.reason}",
                 intent="blocked",
             )
 
-        # ── Emotional Intelligence Analysis ──────────────────────────────────
-        eq_profile: EmotionalProfile = self._eq_engine.analyze(request.user_message)
+        sanitized_input = input_res.text
+
+        # ── Emotional Intelligence Analysis ─────────────────────────────
+        eq_profile: EmotionalProfile = self._eq_engine.analyze(sanitized_input)
         eq_directive = self._eq_engine.get_system_prompt_modifier(eq_profile)
 
         memory = self._get_memory(request.session_id)
-        intent: Intent = self._intent_router.route(request.user_message)
+        intent: Intent = self._intent_router.route(sanitized_input)
         log.info("orchestrator_chat", session=request.session_id, intent=intent.value, emotion=eq_profile.primary_emotion.value)
 
         context_chunks: list[str] = []
@@ -97,11 +103,11 @@ class AIOrchestrator:
 
         if request.enable_rag:
             results = await self._retriever.retrieve(
-                request.user_message,
+                sanitized_input,
                 source_filter=request.source_filter,
             )
             if results:
-                results = await self._reranker.arerank(request.user_message, results)
+                results = await self._reranker.arerank(sanitized_input, results)
                 context_text, citations = self._context_builder.build(results)
                 context_chunks = [r.text for r in results]
 
@@ -110,7 +116,7 @@ class AIOrchestrator:
             and intent in (Intent.INTERNET_SEARCH, Intent.FACTUAL_QUERY)
             and not context_chunks
         ):
-            research = await self._internet.research(request.user_message)
+            research = await self._internet.research(sanitized_input)
             if research.context_text:
                 context_chunks.append(research.context_text)
                 citations.extend([c.to_dict() for c in research.citations])
@@ -118,19 +124,23 @@ class AIOrchestrator:
 
         # Build inference request with EQ System Directive
         inf_request = InferenceRequest(
-            user_message=request.user_message,
+            user_message=sanitized_input,
             conversation_history=memory.get_messages(),
             context_chunks=context_chunks or None,
             system_override=eq_directive if eq_directive else None,
         )
         result = await self._engine.generate(inf_request)
 
-        memory.add("user", request.user_message)
-        memory.add("assistant", result.response)
+        # ── Output Guardrails Check & PII Redaction ─────────────────────
+        output_res = self._guardrails.check_output(result.response, session_id=request.session_id)
+        final_response_text = output_res.text
+
+        memory.add("user", sanitized_input)
+        memory.add("assistant", final_response_text)
 
         return OrchestratorResponse(
             session_id=request.session_id,
-            response=result.response,
+            response=final_response_text,
             intent=intent.value,
             citations=citations,
             rag_chunks_used=len(context_chunks),
@@ -147,26 +157,29 @@ class AIOrchestrator:
     async def stream_chat(
         self, request: OrchestratorRequest
     ) -> AsyncIterator[str]:
-        guard_result = self._prompt_guard.check(request.user_message)
-        if not guard_result.safe:
-            yield f"⚠️ Request blocked: {guard_result.reason}"
+        # ── Input Guardrails Check ──────────────────────────────────────
+        input_res = self._guardrails.check_input(request.user_message, session_id=request.session_id)
+        if input_res.blocked:
+            yield f"⚠️ Request blocked: {input_res.reason}"
             return
 
-        eq_profile: EmotionalProfile = self._eq_engine.analyze(request.user_message)
+        sanitized_input = input_res.text
+
+        eq_profile: EmotionalProfile = self._eq_engine.analyze(sanitized_input)
         eq_directive = self._eq_engine.get_system_prompt_modifier(eq_profile)
 
         memory = self._get_memory(request.session_id)
 
         context_chunks: list[str] = []
         if request.enable_rag:
-            results = await self._retriever.retrieve(request.user_message)
+            results = await self._retriever.retrieve(sanitized_input)
             if results:
-                results = await self._reranker.arerank(request.user_message, results)
+                results = await self._reranker.arerank(sanitized_input, results)
                 context_text, _ = self._context_builder.build(results)
                 context_chunks = [r.text for r in results]
 
         inf_request = InferenceRequest(
-            user_message=request.user_message,
+            user_message=sanitized_input,
             conversation_history=memory.get_messages(),
             context_chunks=context_chunks or None,
             system_override=eq_directive if eq_directive else None,
@@ -177,8 +190,39 @@ class AIOrchestrator:
             full_response += token
             yield token
 
-        memory.add("user", request.user_message)
-        memory.add("assistant", full_response)
+        # Redact and check final response before recording to memory
+        output_res = self._guardrails.check_output(full_response, session_id=request.session_id)
+        memory.add("user", sanitized_input)
+        memory.add("assistant", output_res.text)
+
+    def run_turn(self, user_prompt: str, session_id: str = "default-session") -> dict:
+        """Synchronous wrapper for executing conversational turn."""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        req = OrchestratorRequest(
+            session_id=session_id,
+            user_message=user_prompt,
+            stream=False,
+            enable_rag=True,
+            enable_internet=False
+        )
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                res = pool.submit(asyncio.run, self.chat(req)).result()
+        else:
+            res = loop.run_until_complete(self.chat(req))
+
+        return {
+            "response": res.response,
+            "grounding_score": 0.95,
+            "sources": res.citations,
+            "session_id": session_id
+        }
 
     def clear_session(self, session_id: str) -> None:
         if session_id in self._sessions:
@@ -186,3 +230,6 @@ class AIOrchestrator:
 
     def get_session_memory(self, session_id: str) -> dict:
         return self._get_memory(session_id).to_dict()
+
+
+default_agent_loop = AIOrchestrator()

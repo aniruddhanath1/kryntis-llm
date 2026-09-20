@@ -41,7 +41,7 @@ class VectorSearchResult:
     metadata: dict
 
 
-# ─── Abstract Interface ────────────────────────────────────────────────────────
+# ─── Abstract Interface ───────────────────────────────────────────────────────
 
 class BaseVectorStore(ABC):
     """
@@ -357,3 +357,6 @@ def build_vector_store(backend: str | None = None) -> BaseVectorStore:
         return CustomVectorStoreAdapter()
     else:
         raise ValueError(f"Unknown vector backend: '{backend}'. Use: chroma, faiss, postgres, custom")
+
+
+VectorStore = BaseVectorStore

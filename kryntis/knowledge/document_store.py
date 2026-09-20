@@ -103,7 +103,7 @@ class DocumentStore:
         with self._conn() as con:
             con.executescript(_DDL)
 
-    # ── Sources ────────────────────────────────────────────────────────────────
+    # ── Sources ───────────────────────────────────────────────────────────────
 
     def upsert_source(
         self,
@@ -140,7 +140,7 @@ class DocumentStore:
         with self._conn() as con:
             con.execute("UPDATE sources SET status='deleted' WHERE source_id=?", (source_id,))
 
-    # ── Chunks ─────────────────────────────────────────────────────────────────
+    # ── Chunks ────────────────────────────────────────────────────────────────
 
     def upsert_chunk(
         self,
@@ -204,7 +204,7 @@ class DocumentStore:
         with self._conn() as con:
             return con.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
 
-    # ── Snapshots ──────────────────────────────────────────────────────────────
+    # ── Snapshots ─────────────────────────────────────────────────────────────
 
     def record_snapshot(self, snapshot_id: str, description: str = "") -> None:
         count = self.count_chunks()
@@ -220,3 +220,6 @@ class DocumentStore:
                 "SELECT * FROM knowledge_snapshots ORDER BY created_at DESC"
             ).fetchall()
         return [dict(r) for r in rows]
+
+
+SQLiteDocumentStore = DocumentStore

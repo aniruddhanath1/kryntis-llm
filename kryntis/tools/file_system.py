@@ -1,18 +1,66 @@
 """
-File System Tool — safe workspace file operations (read, write, list, grep).
+File System Tool — safe workspace file operations with directory boundary confinement.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
+def get_workspace_root() -> Path:
+    """Return the absolute Path to the allowed workspace root."""
+    ws_env = os.environ.get("KRYNTIS_WORKSPACE_DIR")
+    if ws_env:
+        return Path(ws_env).resolve()
+    return Path.cwd().resolve()
+
+
+_SENSITIVE_PATTERNS = frozenset([
+    ".env",
+    ".env-encryption.key",
+    ".env-develop",
+    ".env-stage",
+    ".env-qa",
+    ".env-prod",
+])
+
+
+def _resolve_safe_workspace_path(path_str: str) -> Path:
+    """
+    Resolve and validate that a path is strictly inside the allowed workspace root
+    and does not access sensitive system/key files.
+    """
+    root = get_workspace_root()
+    p = Path(path_str)
+    if not p.is_absolute():
+        p = (root / p).resolve()
+    else:
+        p = p.resolve()
+
+    try:
+        p.relative_to(root)
+    except ValueError:
+        raise PermissionError(f"Access denied: Path '{path_str}' is outside the authorized workspace '{root}'.")
+
+    if p.name in _SENSITIVE_PATTERNS or p.suffix in (".key", ".pem", ".cert", ".crt"):
+        raise PermissionError(f"Access denied: Reading secret or key file '{p.name}' is prohibited.")
+
+    return p
+
+
 def fs_read_file(path: str, max_chars: int = 10000) -> dict[str, Any]:
-    """Read contents of a file within the workspace."""
-    p = Path(path)
+    """Read contents of a file within the workspace with safety bounds."""
+    try:
+        p = _resolve_safe_workspace_path(path)
+    except PermissionError as pe:
+        return {"error": str(pe)}
+    except Exception as e:
+        return {"error": f"Invalid path: {e}"}
+
     if not p.exists():
         return {"error": f"File not found: {path}"}
     if not p.is_file():
@@ -31,13 +79,23 @@ def fs_read_file(path: str, max_chars: int = 10000) -> dict[str, Any]:
 
 
 def fs_list_dir(directory: str = ".", max_items: int = 50) -> dict[str, Any]:
-    """List contents of a directory."""
-    p = Path(directory)
+    """List contents of a directory within the workspace."""
+    try:
+        p = _resolve_safe_workspace_path(directory)
+    except PermissionError as pe:
+        return {"error": str(pe)}
+    except Exception as e:
+        return {"error": f"Invalid directory path: {e}"}
+
     if not p.exists():
         return {"error": f"Directory not found: {directory}"}
+    if not p.is_dir():
+        return {"error": f"Path is not a directory: {directory}"}
     try:
         items = []
         for child in sorted(p.iterdir()):
+            if child.name.startswith(".env") or child.suffix in (".key", ".pem"):
+                continue
             items.append({
                 "name": child.name,
                 "is_dir": child.is_dir(),

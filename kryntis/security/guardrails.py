@@ -19,7 +19,9 @@ GuardrailPipeline wires both together, reading thresholds from KryntisConfig.
 
 from __future__ import annotations
 
+import base64
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -28,7 +30,7 @@ from kryntis.utils.logging import get_logger
 log = get_logger(__name__)
 
 
-# ── Result types ──────────────────────────────────────────────────────────────
+# ── Result types ─────────────────────────────────────────────────────────────
 
 class GuardrailAction(str, Enum):
     ALLOW  = "allow"
@@ -54,7 +56,19 @@ class GuardrailResult:
         return self.action in (GuardrailAction.ALLOW, GuardrailAction.REDACT, GuardrailAction.WARN)
 
 
-# ── Rule tables ───────────────────────────────────────────────────────────────
+# ── Dual-Boundary Isolation Helper ───────────────────────────────────────────
+
+def wrap_dual_boundary(user_message: str) -> str:
+    """
+    Wraps user input in explicit dual semantic boundaries to prevent prompt
+    jailbreak bleeding into system prompts.
+    """
+    return f"<user_query>\n{user_message.strip()}\n</user_query>"
+
+
+# ── Rule tables ──────────────────────────────────────────────────────────────
+
+_INVISIBLE_CHARS_RE = re.compile(r"[\u200B-\u200D\uFEFF\u00AD\u202A-\u202E]")
 
 _INJECTION_RULES: list[tuple[str, str]] = [
     (r"ignore (previous|all|prior|above) instructions",     "prompt_injection"),
@@ -68,10 +82,12 @@ _INJECTION_RULES: list[tuple[str, str]] = [
     (r"print (your|the) (system|initial) (message|prompt)", "system_prompt_leak"),
     (r"write malware|create a (virus|trojan|worm)",         "malware_request"),
     (r"exploit (this|the) (system|server|api)",             "exploit_request"),
-    (r"<\|.*?\|>",                                          "token_injection"),
-    (r"\[\[.*?\]\]",                                        "template_injection"),
-    (r"<!--.*?-->",                                         "html_comment_injection"),
-    (r"(?:```|<%|{%)[\s\S]{0,200}(?:system|admin|root)",   "code_block_injection"),
+    (r"<\s*\|\s*.*?\s*\|\s*>",                             "token_injection"),
+    (r"\[\s*\[\s*.*?\s*\]\s*\]",                           "template_injection"),
+    (r"<!--\s*.*?\s*-->",                                   "html_comment_injection"),
+    (r"(?:^|\n)\s*(?:system|developer|assistant|human)\s*:\s*(?:ignore|forget|disregard)", "role_simulation"),
+    (r"\[\/?(?:INST|SYS)\]",                                "delimiters_injection"),
+    (r"!\[.*?\]\(https?:\/\/[^\s\)]+[\?&](?:q|data|leak|token|secret)=", "markdown_exfiltration"),
 ]
 
 _TOXIC_RULES: list[tuple[str, str]] = [
@@ -119,11 +135,16 @@ _COMPILED_INJECTION = [(re.compile(p, re.IGNORECASE | re.DOTALL), r) for p, r in
 _COMPILED_TOXIC     = [(re.compile(p, re.IGNORECASE), r) for p, r in _TOXIC_RULES]
 
 
-# ── Input guardrails ──────────────────────────────────────────────────────────
+def _normalize_text(text: str) -> str:
+    cleaned = _INVISIBLE_CHARS_RE.sub("", text)
+    return unicodedata.normalize("NFKC", cleaned)
+
+
+# ── Input guardrails ─────────────────────────────────────────────────────────
 
 class InputGuardrails:
     """
-    Ordered chain: length → injection → toxic → PII scrub.
+    Ordered chain: length → unicode normalization → injection → toxic → PII scrub.
 
     On BLOCK the original text is preserved in the result (not sent to LLM).
     On REDACT the sanitised text is in result.text (send this to LLM instead).
@@ -144,7 +165,7 @@ class InputGuardrails:
     def run(self, text: str, session_id: str = "") -> GuardrailResult:
         ctx = {"session_id": session_id}
 
-        # ── 1. Length ─────────────────────────────────────────────────────
+        # ── 1. Length ─────────────────────────────────────────────────────────
         if len(text) > self._max_length:
             log.warning("guardrail_input_length", length=len(text), **ctx)
             return GuardrailResult(
@@ -154,10 +175,12 @@ class InputGuardrails:
                 reason=f"Input exceeds {self._max_length:,} characters.",
             )
 
-        # ── 2. Prompt injection ───────────────────────────────────────────
+        normalized = _normalize_text(text)
+
+        # ── 2. Prompt injection ───────────────────────────────────────────────
         if self._block_injection:
             for pattern, rule in _COMPILED_INJECTION:
-                if pattern.search(text):
+                if pattern.search(normalized):
                     log.warning("guardrail_injection", rule=rule, **ctx)
                     return GuardrailResult(
                         action=GuardrailAction.BLOCK,
@@ -166,10 +189,10 @@ class InputGuardrails:
                         reason="Potential prompt injection or instruction override detected.",
                     )
 
-        # ── 3. Toxic / harmful ────────────────────────────────────────────
+        # ── 3. Toxic / harmful ────────────────────────────────────────────────
         if self._block_toxic:
             for pattern, rule in _COMPILED_TOXIC:
-                if pattern.search(text):
+                if pattern.search(normalized):
                     log.warning("guardrail_toxic", rule=rule, **ctx)
                     return GuardrailResult(
                         action=GuardrailAction.BLOCK,
@@ -178,7 +201,7 @@ class InputGuardrails:
                         reason="Request contains prohibited content.",
                     )
 
-        # ── 4. PII scrubbing (redact, not block) ──────────────────────────
+        # ── 4. PII scrubbing (redact, not block) ──────────────────────────────
         if self._strip_pii:
             original = text
             for pattern, replacement in _PII_INPUT_RULES:
@@ -195,7 +218,7 @@ class InputGuardrails:
         return GuardrailResult(action=GuardrailAction.ALLOW, text=text, rule="pass")
 
 
-# ── Output guardrails ─────────────────────────────────────────────────────────
+# ── Output guardrails ────────────────────────────────────────────────────────
 
 class OutputGuardrails:
     """
@@ -221,7 +244,7 @@ class OutputGuardrails:
     def run(self, text: str, confidence: float = 1.0, session_id: str = "") -> GuardrailResult:
         ctx = {"session_id": session_id}
 
-        # ── 1. Block harmful output ───────────────────────────────────────
+        # ── 1. Block harmful output ───────────────────────────────────────────
         if self._block_harmful:
             for pattern, rule in _HARMFUL_OUTPUT_RULES:
                 if pattern.search(text):
@@ -233,7 +256,7 @@ class OutputGuardrails:
                         reason="Response contained prohibited content and was blocked.",
                     )
 
-        # ── 2. PII redaction ──────────────────────────────────────────────
+        # ── 2. PII redaction ──────────────────────────────────────────────────
         if self._redact_pii:
             original = text
             for pattern, replacement in _PII_OUTPUT_RULES:
@@ -241,77 +264,71 @@ class OutputGuardrails:
             if text != original:
                 log.info("guardrail_output_pii_redacted", **ctx)
 
-        # ── 3. Confidence / uncertainty flagging ──────────────────────────
-        metadata: dict = {}
+        # ── 3. Flag uncertainty ───────────────────────────────────────────────
+        flags: dict[str, object] = {}
         if self._flag_uncertainty:
-            if confidence < self._min_confidence:
-                metadata["low_confidence"] = True
-                metadata["confidence"] = round(confidence, 4)
             lower = text.lower()
             if any(phrase in lower for phrase in _UNCERTAINTY_PHRASES):
-                metadata["uncertainty_detected"] = True
+                flags["uncertainty_detected"] = True
+                log.info("guardrail_output_uncertainty_flagged", **ctx)
 
+        if confidence < self._min_confidence:
+            flags["low_confidence"] = True
+            log.warning(
+                "guardrail_output_low_confidence",
+                confidence=round(confidence, 3),
+                threshold=self._min_confidence,
+                **ctx,
+            )
+
+        action = GuardrailAction.WARN if flags else GuardrailAction.ALLOW
         return GuardrailResult(
-            action=GuardrailAction.ALLOW,
+            action=action,
             text=text,
-            rule="pass",
-            metadata=metadata,
+            rule="pass" if not flags else "uncertainty_flag",
+            metadata=flags,
         )
 
 
-# ── Composite pipeline ────────────────────────────────────────────────────────
+# ── Unified Pipeline ─────────────────────────────────────────────────────────
 
 class GuardrailPipeline:
     """
-    Single entry point for all guardrail checks.
-
-    Instantiate once and reuse (cheap; all regex is pre-compiled at module level).
-
-    Example:
-        pipeline = GuardrailPipeline()
-
-        result = pipeline.check_input(user_text, session_id=sid)
-        if result.blocked:
-            return {"error": result.reason}
-
-        response_text = llm.generate(result.text)   # result.text may be redacted
-
-        result = pipeline.check_output(response_text, confidence=0.9, session_id=sid)
-        return {"response": result.text, "flags": result.metadata}
+    Unified entry point. Evaluates input before LLM and output after LLM.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        input_guards: InputGuardrails | None = None,
+        output_guards: OutputGuardrails | None = None,
+    ) -> None:
         from kryntis.utils.config import get_config
-        cfg = get_config()
-        sec = cfg.security
-        self.input = InputGuardrails(
-            max_length=sec.max_prompt_length,
-            block_injection=sec.prompt_injection_detection,
-            block_toxic=sec.block_toxic_input,
-            strip_pii=sec.strip_pii_from_input,
+        cfg = get_config().security
+
+        self._input = input_guards or InputGuardrails(
+            max_length=cfg.max_prompt_length,
+            block_injection=cfg.prompt_injection_detection,
+            block_toxic=cfg.block_toxic_input,
+            strip_pii=cfg.strip_pii_from_input,
         )
-        self.output = OutputGuardrails(
-            block_harmful=sec.block_harmful_output,
-            redact_pii=sec.redact_pii_from_output,
-            flag_uncertainty=sec.flag_uncertain_output,
-            min_confidence=cfg.evaluation.min_confidence_to_respond,
+        self._output = output_guards or OutputGuardrails(
+            block_harmful=cfg.block_harmful_output,
+            redact_pii=cfg.redact_pii_from_output,
+            flag_uncertainty=getattr(cfg, "flag_uncertain_output", getattr(cfg, "flag_uncertainty_output", True)),
         )
 
-    def check_input(self, text: str, session_id: str = "") -> GuardrailResult:
-        return self.input.run(text, session_id=session_id)
+    def check_input(self, prompt: str, session_id: str = "") -> GuardrailResult:
+        return self._input.run(prompt, session_id=session_id)
 
-    def check_output(
-        self, text: str, confidence: float = 1.0, session_id: str = ""
-    ) -> GuardrailResult:
-        return self.output.run(text, confidence=confidence, session_id=session_id)
+    def check_output(self, response: str, confidence: float = 1.0, session_id: str = "") -> GuardrailResult:
+        return self._output.run(response, confidence=confidence, session_id=session_id)
 
 
-# Module-level singleton
-_pipeline: GuardrailPipeline | None = None
+_PIPELINE_INSTANCE: GuardrailPipeline | None = None
 
 
 def get_guardrail_pipeline() -> GuardrailPipeline:
-    global _pipeline
-    if _pipeline is None:
-        _pipeline = GuardrailPipeline()
-    return _pipeline
+    global _PIPELINE_INSTANCE
+    if _PIPELINE_INSTANCE is None:
+        _PIPELINE_INSTANCE = GuardrailPipeline()
+    return _PIPELINE_INSTANCE

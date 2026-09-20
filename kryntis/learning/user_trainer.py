@@ -1,26 +1,37 @@
 """
-User Trainer — Enables continuous model fine-tuning directly from user inputs and feedback.
-
-Records interactive instruction-response pairs into a local training corpus
-and executes PyTorch training steps to adapt the model weights to user corrections.
+User Trainer — Enables continuous model fine-tuning directly from user inputs and feedback
+with automated prompt-injection, delimiter-injection, and toxic-content screening.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
+from kryntis.security.guardrails import get_guardrail_pipeline
 from kryntis.training.config import TrainingConfig
 from kryntis.training.trainer import Trainer
 from kryntis.utils.logging import get_logger
 
 log = get_logger(__name__)
 
+_PROHIBITED_SPECIAL_TOKENS = [
+    "<|system|>",
+    "<|user|>",
+    "<|assistant|>",
+    "<s>",
+    "</s>",
+    "<pad>",
+    "<unk>",
+    "<sep>",
+]
+
 
 class UserTrainer:
     """
-    Manages fine-tuning the model using direct user interactions and corrections.
+    Manages fine-tuning the model using direct user interactions and corrections with safety checks.
     """
 
     def __init__(
@@ -32,6 +43,7 @@ class UserTrainer:
         self.user_corpus_path.parent.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self._guardrails = get_guardrail_pipeline()
 
     def record_user_sample(
         self,
@@ -40,7 +52,7 @@ class UserTrainer:
         domain: str = "user_input",
     ) -> int:
         """
-        Record a single prompt-response training pair from the user.
+        Record a single prompt-response training pair from the user after security checks.
 
         Args:
             prompt: User input prompt or instruction.
@@ -54,6 +66,19 @@ class UserTrainer:
         response = response.strip()
         if not prompt or not response:
             raise ValueError("Both prompt and response must be non-empty.")
+
+        if len(prompt) > 8192 or len(response) > 8192:
+            raise ValueError("Prompt or response exceeds maximum allowed length of 8192 characters.")
+
+        # Check for control delimiter injections
+        for token in _PROHIBITED_SPECIAL_TOKENS:
+            if token in prompt or token in response:
+                raise ValueError(f"Special control delimiter '{token}' is prohibited in training data.")
+
+        # Run guardrail check on prompt
+        guard_res = self._guardrails.check_input(prompt)
+        if guard_res.blocked:
+            raise ValueError(f"Training sample rejected by safety guardrails: {guard_res.reason}")
 
         formatted_text = f"User: {prompt}\nAssistant: {response}"
         record = {

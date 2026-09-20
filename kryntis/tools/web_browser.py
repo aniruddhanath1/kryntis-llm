@@ -1,21 +1,30 @@
 """
-Web Browser Tool — fetch webpages, scrape readable text, and query the web.
+Web Browser Tool — fetch webpages, scrape readable text, and query the web with SSRF protection.
 """
 
 from __future__ import annotations
 
 import re
 from typing import Any
-import urllib.request
 import urllib.parse
+import urllib.request
 
+from kryntis.security.ssrf import SSRFValidationError, validate_safe_url
 from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
 def fetch_webpage(url: str, max_chars: int = 8000) -> dict[str, Any]:
-    """Fetch URL and extract clean text without HTML tags."""
+    """Fetch URL and extract clean text without HTML tags, with SSRF protection."""
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+
+    try:
+        url = validate_safe_url(url)
+    except SSRFValidationError as se:
+        return {"url": url, "status": "error", "error": f"SSRF Protection Error: {se}"}
+    except Exception as e:
+        return {"url": url, "status": "error", "error": f"Invalid URL: {e}"}
+
     try:
         req = urllib.request.Request(
             url,

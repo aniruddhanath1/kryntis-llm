@@ -49,9 +49,10 @@ venv.bak/
 .env-qa
 .env-prod
 
-# ── 4. Trained Models, Weights & Checkpoints ──────────────────────────────────
+# ── 4. Trained Models, Weights, Tokenizers & Checkpoints ──────────────────────
 checkpoints/
 data/models/checkpoints/
+data/tokenizer/
 *.pt
 *.pth
 *.bin
@@ -73,22 +74,20 @@ data/chroma/
 data/vectors/
 data/cache/
 
-# ── 6. Raw & Processed Datasets (Keep data directory structure) ───────────────
+# ── 6. Training datasets ──────────────────────────────────────────────────────
+data/raw/*
+data/processed/*
+
+# ── 7. Raw & Processed Datasets (Keep data directory structure) ───────────────
 data/raw/*.tar.gz
 data/raw/*.zip
 data/raw/*.parquet
 data/processed/*.npy
 data/processed/*.arrow
-
-# Training / dataset files
-data/raw/*.jsonl
-data/processed/*.jsonl
-
-# Keep directory structure
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# ── 7. Testing, Linting & Type Checking ───────────────────────────────────────
+# ── 8. Testing, Linting & Type Checking ───────────────────────────────────────
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -101,7 +100,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 
-# ── 8. Logs, Profiling & Runtime Artifacts ────────────────────────────────────
+# ── 9. Logs, Profiling & Runtime Artifacts ────────────────────────────────────
 logs/
 *.log
 *.log.*
@@ -110,7 +109,7 @@ gmon.out
 .prof
 .benchmarks/
 
-# ── 9. IDE & Editor Specifics ─────────────────────────────────────────────────
+# ── 10. IDE & Editor Specifics ─────────────────────────────────────────────────
 # PyCharm
 .idea/workspace.xml
 .idea/shelf/
@@ -130,7 +129,7 @@ gmon.out
 *.code-workspace
 .history/
 
-# ── 10. Operating System Artifacts ────────────────────────────────────────────
+# ── 11. Operating System Artifacts ────────────────────────────────────────────
 # macOS
 .DS_Store
 .AppleDouble
@@ -151,4 +150,3 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
-

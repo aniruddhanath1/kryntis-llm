@@ -2,11 +2,38 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Kryntis: Interactive CLI Chat",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["chat"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
       "name": "Kryntis: Serve API (FastAPI)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "args": ["serve"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Process Datasets",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["process-datasets"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Download Datasets",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": ["download-datasets"],
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -97,6 +124,15 @@
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "args": ["train-interactive"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Kryntis: Run Pytest Suite",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests"],
       "console": "integratedTerminal",
       "justMyCode": true
     },

@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "kryntis-llm"
@@ -12,12 +12,12 @@ license = { text = "MIT" }
 authors = [{ name = "Kryntis AI" }]
 
 [project.scripts]
-kryntis-service = "service.main:run"
-kryntis-download-model = "scripts.download_base_model:main"
+kryntis = "main:main"
+kryntis-service = "main:serve"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["kryntis*", "service*"]
+include = ["kryntis*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -30,6 +30,6 @@ line-length = 100
 target-version = "py310"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 ignore_missing_imports = true
 strict = false
