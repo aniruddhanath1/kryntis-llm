@@ -11,6 +11,7 @@ Ensures strict compliance with 8 GB RAM constraints:
 from __future__ import annotations
 
 import gc
+import os
 import sys
 import threading
 import time
@@ -110,3 +111,34 @@ def run_heavy_task_safely(
         _HEAVY_TASK_LOCK.release()
         post_snap = snapshot()
         log.info("heavy_task_cleanup_done", task=task_name, free_ram_mb=post_snap.available_mb)
+
+
+class TaskQueue:
+    """Queue wrapper for safe memory-guarded task execution."""
+
+    def run_safe(
+        self,
+        task_name: str,
+        task_fn: Callable[..., Any],
+        *args: Any,
+        required_ram_mb: float = 1500.0,
+        **kwargs: Any,
+    ) -> Any:
+        return run_heavy_task_safely(
+            task_name,
+            task_fn,
+            *args,
+            required_ram_mb=required_ram_mb,
+            **kwargs,
+        )
+
+
+default_task_queue = TaskQueue()
+
+__all__ = [
+    "TaskQueue",
+    "default_task_queue",
+    "run_heavy_task_safely",
+    "get_optimal_worker_count",
+    "MemorySafetyError",
+]

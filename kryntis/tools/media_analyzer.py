@@ -1,5 +1,5 @@
 """
-Media Analyzer Tool — inspects audio, video, and image files for acoustic, structural, and visual metadata.
+Media Analyzer Tool — inspects audio, video, and image files for acoustic, structural, and visual metadata with workspace path validation.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from typing import Any
 from kryntis.chunking.audio_chunker import AudioChunker
 from kryntis.chunking.image_chunker import ImageChunker
 from kryntis.chunking.video_chunker import VideoChunker
+from kryntis.tools.file_system import _resolve_safe_workspace_path
 from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
@@ -23,9 +24,17 @@ def analyze_media_file(path: str) -> dict[str, Any]:
     Returns:
         dict with metadata, dimensions/duration, format, and chunks.
     """
-    p = Path(path)
+    try:
+        p = _resolve_safe_workspace_path(path)
+    except PermissionError as pe:
+        return {"error": str(pe)}
+    except Exception as e:
+        return {"error": f"Invalid media path: {e}"}
+
     if not p.exists():
         return {"error": f"File not found: {path}"}
+    if not p.is_file():
+        return {"error": f"Path is not a file: {path}"}
 
     file_size = p.stat().st_size
     ext = p.suffix.lower()

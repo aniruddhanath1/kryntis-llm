@@ -8,7 +8,7 @@ loading entire payloads into RAM.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 from typing import TypeVar
 
@@ -88,7 +88,7 @@ def token_chunked_text(
     text: str,
     chunk_size: int,
     overlap: int,
-    count_fn: "Callable[[str], int] | None" = None,
+    count_fn: Callable[[str], int] | None = None,
 ) -> Iterator[str]:
     """
     Split text into overlapping chunks based on rough token counts.

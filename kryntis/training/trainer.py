@@ -151,7 +151,7 @@ class Trainer:
 
         latest = checkpoints[-1]
         log.info("loading_checkpoint", path=str(latest))
-        checkpoint = torch.load(latest, map_location=self.device)
+        checkpoint = torch.load(latest, map_location=self.device, weights_only=True)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.step = checkpoint["step"] * self.cfg.grad_accum_steps

@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from cachetools import TTLCache
+
 from kryntis.chunking.chunk_router import ChunkRouter
 from kryntis.ingestion.validator import FileValidator, ValidationResult
 from kryntis.knowledge.document_store import DocumentStore
@@ -64,7 +66,7 @@ class IngestionPipeline:
         self._embedder = get_embedder()
         self._validator = FileValidator()
         self._batch_size = cfg.rag.embedder_batch_size
-        self._jobs: dict[str, IngestionJob] = {}
+        self._jobs: TTLCache[str, IngestionJob] = TTLCache(maxsize=5000, ttl=86400)
 
     async def ingest_files(
         self,

@@ -260,3 +260,8 @@ class KryntisConfig:
 def get_config() -> KryntisConfig:
     """Return the singleton config instance."""
     return KryntisConfig()
+
+
+def load_config(path: str | Path | None = None) -> KryntisConfig:
+    """Load or return the singleton config instance."""
+    return get_config()

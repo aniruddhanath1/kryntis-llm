@@ -2,13 +2,53 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Kryntis: Train All Domains Together",
+      "label": "Kryntis: Build Wheel & Package",
       "type": "shell",
-      "command": "python main.py process-datasets && python main.py train",
+      "command": "python -m build --no-isolation",
       "group": {
         "kind": "build",
         "isDefault": true
       },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Run Pytest Suite",
+      "type": "shell",
+      "command": "pytest",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Interactive CLI Chat",
+      "type": "shell",
+      "command": "python main.py chat",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Run Server (FastAPI)",
+      "type": "shell",
+      "command": "python main.py serve",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Download Datasets",
+      "type": "shell",
+      "command": "python main.py download-datasets",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Process Datasets",
+      "type": "shell",
+      "command": "python main.py process-datasets",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kryntis: Train All Domains Together",
+      "type": "shell",
+      "command": "python main.py process-datasets && python main.py train",
       "problemMatcher": []
     },
     {
@@ -51,12 +91,6 @@
       "label": "Kryntis: Train Media Domain",
       "type": "shell",
       "command": "python main.py process-datasets --domain media && python main.py train --domain media",
-      "problemMatcher": []
-    },
-    {
-      "label": "Kryntis: Run Server (FastAPI)",
-      "type": "shell",
-      "command": "python main.py serve",
       "problemMatcher": []
     }
   ]

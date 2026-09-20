@@ -1,5 +1,5 @@
 """
-HTTP Client Tool — dispatches HTTP REST requests (GET, POST, PUT, DELETE) with custom headers.
+HTTP Client Tool — dispatches HTTP REST requests (GET, POST, PUT, DELETE) with SSRF safety validation.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from kryntis.security.ssrf import SSRFValidationError, validate_safe_url
 from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
@@ -19,7 +20,7 @@ def http_request(
     body: str | None = None,
 ) -> dict[str, Any]:
     """
-    Send an HTTP REST request.
+    Send an HTTP REST request with SSRF validation.
 
     Args:
         method: HTTP verb (GET, POST, PUT, DELETE, PATCH).
@@ -31,6 +32,13 @@ def http_request(
         dict with status_code, headers, and response text.
     """
     method = method.upper()
+    try:
+        url = validate_safe_url(url)
+    except SSRFValidationError as se:
+        return {"status_code": 0, "error": f"SSRF Protection Error: {se}", "success": False}
+    except Exception as e:
+        return {"status_code": 0, "error": f"Invalid URL: {e}", "success": False}
+
     req_headers = headers or {}
     if "User-Agent" not in req_headers:
         req_headers["User-Agent"] = "KryntisAI/1.0 (Autonomous Agent)"

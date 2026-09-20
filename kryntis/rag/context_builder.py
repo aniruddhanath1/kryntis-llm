@@ -76,3 +76,6 @@ class ContextBuilder:
             citations=len(citations),
         )
         return context, citations
+
+
+GroundedContextBuilder = ContextBuilder

@@ -12,7 +12,7 @@ from kryntis.voice.tts_engine import TextToSpeechEngine
 from kryntis.voice.stt_engine import SpeechToTextEngine
 from kryntis.voice.voice_interface import VoiceAssistant
 
-router = APIRouter(prefix="/voice", tags=["Voice"])
+router = APIRouter(tags=["Voice"])
 
 _tts = TextToSpeechEngine()
 _stt = SpeechToTextEngine()

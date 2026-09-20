@@ -1,5 +1,5 @@
 """
-Database Tool — executes SQL queries against SQLite or in-memory analytical databases.
+Database Tool — executes SQL queries against SQLite or in-memory analytical databases with workspace boundary enforcement.
 """
 
 from __future__ import annotations
@@ -7,6 +7,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from kryntis.tools.file_system import _resolve_safe_workspace_path
 from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
@@ -22,7 +23,14 @@ def execute_sql_query(query: str, db_path: str = ":memory:") -> dict[str, Any]:
         Dictionary with columns, rows, and affected row count.
     """
     try:
-        conn = sqlite3.connect(db_path)
+        resolved_db: str
+        if db_path != ":memory:":
+            safe_p = _resolve_safe_workspace_path(db_path)
+            resolved_db = str(safe_p)
+        else:
+            resolved_db = ":memory:"
+
+        conn = sqlite3.connect(resolved_db)
         cursor = conn.cursor()
         cursor.execute(query)
 

@@ -30,6 +30,7 @@ import time
 import uuid
 from typing import Any
 
+from cachetools import TTLCache
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -39,23 +40,22 @@ from kryntis.utils.logging import get_logger
 log = get_logger(__name__)
 router = APIRouter(tags=["A2A"])
 
-# ── Agent Card (returned at /.well-known/agent.json) ─────────────────────────
 
-def _build_agent_card() -> dict:
-    cfg = get_config()
-    host = cfg.a2a.public_base_url.rstrip("/")
+# ── Agent Card (public discovery endpoint) ────────────────────────────────────
+
+def _build_agent_card(base_url: str) -> dict:
     return {
-        "name":         "Kryntis AI",
-        "description":  (
-            "Self-hosted AI assistant with RAG over a private knowledge base, "
-            "hybrid BM25 + dense retrieval, three-tier memory, internet research, "
-            "emotional intelligence, and continual learning."
+        "name":        "Kryntis AI",
+        "description": (
+            "Enterprise-grade sovereign AI platform with zero external dependencies. "
+            "Supports hybrid RAG retrieval, continual learning, semantic memory, "
+            "and emotional intelligence (EQ) in 100% offline environments."
         ),
-        "url":          f"{host}/a2a",
-        "version":      "1.0.0",
-        "provider": {
-            "organization": "Kryntis",
-            "url":          host,
+        "url":         base_url,
+        "version":     "1.0.0",
+        "protocolVersion": "1.0",
+        "endpoints": {
+            "tasks": f"{base_url}/a2a",
         },
         "capabilities": {
             "streaming":        True,
@@ -82,7 +82,7 @@ def _build_agent_card() -> dict:
                     "Summarise the last five customer support tickets about billing.",
                 ],
                 "inputModes":  ["text/plain"],
-                "outputModes": ["text/plain"],
+                "outputModes": [text_plain := "text/plain"],
             },
             {
                 "id":          "kryntis.knowledge_search",
@@ -99,9 +99,9 @@ def _build_agent_card() -> dict:
     }
 
 
-# ── In-memory task store (replace with Redis/DB for production) ───────────────
+# ── Bounded in-memory task store (TTLCache to prevent memory exhaustion) ────────
 
-_tasks: dict[str, dict] = {}
+_tasks: TTLCache[str, dict] = TTLCache(maxsize=10000, ttl=86400)
 
 
 def _new_task(task_id: str, skill_id: str, parts: list[dict]) -> dict:
@@ -119,139 +119,168 @@ def _iso_now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _text_part(text: str) -> dict:
-    return {"type": "TextPart", "text": text}
+# ── Protocol Router ───────────────────────────────────────────────────────────
 
-
-def _data_part(data: Any) -> dict:
-    return {"type": "DataPart", "data": data}
-
-
-# ── Task execution ────────────────────────────────────────────────────────────
-
-async def _execute_task(task: dict) -> None:
-    """Run the requested skill and update task state."""
-    task_id  = task["id"]
-    skill_id = task.get("skill_id", "kryntis.chat")
-
-    task["status"] = {"state": "working", "timestamp": _iso_now()}
-
-    try:
-        parts = task.get("input", [])
-        # Extract text from the first TextPart
-        text = next(
-            (p["text"] for p in parts if p.get("type") == "TextPart"),
-            "",
-        )
-        data = next(
-            (p.get("data", {}) for p in parts if p.get("type") == "DataPart"),
-            {},
-        )
-
-        if skill_id == "kryntis.chat":
-            from kryntis.service.dependencies import get_orchestrator
-            session_id = data.get("session_id") or str(uuid.uuid4())
-            orch   = get_orchestrator()
-            result = await orch.chat(message=text, session_id=session_id)
-            response_text = result.get("response", "")
-            task["artifacts"] = [{"parts": [_text_part(response_text)]}]
-
-        elif skill_id == "kryntis.knowledge_search":
-            query = text or data.get("query", "")
-            top_k = int(data.get("top_k", 5))
-            from kryntis.service.dependencies import get_doc_store
-            results = await get_doc_store().search(query=query, top_k=top_k)
-            task["artifacts"] = [{"parts": [_data_part(results)]}]
-
-        else:
-            task["artifacts"] = [{"parts": [_text_part(f"Unknown skill: {skill_id}")]}]
-
-        task["status"] = {"state": "completed", "timestamp": _iso_now()}
-        log.info("a2a_task_completed", task_id=task_id, skill=skill_id)
-
-    except Exception as exc:
-        log.exception("a2a_task_failed", task_id=task_id)
-        task["status"] = {
-            "state":     "failed",
-            "timestamp": _iso_now(),
-            "message":   {"role": "agent", "parts": [_text_part(f"Error: {exc}")]},
-        }
-
-
-# ── HTTP endpoints ────────────────────────────────────────────────────────────
-
-@router.get("/.well-known/agent.json", include_in_schema=False)
-async def agent_card() -> JSONResponse:
-    """Public discovery endpoint — no auth required."""
-    return JSONResponse(_build_agent_card())
+@router.get("/.well-known/agent.json")
+async def get_agent_card(request: Request) -> JSONResponse:
+    """A2A discovery endpoint — returns the Agent Card."""
+    cfg = get_config().a2a
+    base_url = cfg.public_base_url or str(request.base_url).rstrip("/")
+    return JSONResponse(content=_build_agent_card(base_url))
 
 
 @router.post("")
-async def a2a_task(request: Request) -> JSONResponse | StreamingResponse:
+@router.post("/")
+async def handle_a2a_task(request: Request) -> Response:
     """
-    A2A task endpoint.
+    Main A2A task endpoint.
 
-    Accepts tasks/send and tasks/get JSON-RPC style requests,
-    or the simplified flat body format.
+    Handles:
+      - Task submission (skill invocation)
+      - Task status query (poll by ID)
+      - Task cancellation
     """
     try:
         body: dict = await request.json()
     except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        return JSONResponse({"error": "Invalid JSON body."}, status_code=400)
 
-    method = body.get("method", "tasks/send")
+    action = body.get("action", "submit")
 
-    # ── tasks/get ─────────────────────────────────────────────────────────
-    if method == "tasks/get":
-        task_id = body.get("params", {}).get("id") or body.get("id", "")
-        task    = _tasks.get(task_id)
-        if not task:
-            return JSONResponse({"error": f"Task not found: {task_id}"}, status_code=404)
-        return JSONResponse(task)
-
-    # ── tasks/cancel ──────────────────────────────────────────────────────
-    if method == "tasks/cancel":
-        task_id = body.get("params", {}).get("id") or body.get("id", "")
-        task    = _tasks.get(task_id)
-        if task:
-            task["status"] = {"state": "canceled", "timestamp": _iso_now()}
-        return JSONResponse({"canceled": True})
-
-    # ── tasks/send (default) ──────────────────────────────────────────────
-    params   = body.get("params", body)  # accept both wrapped and flat bodies
-    task_id  = params.get("id") or str(uuid.uuid4())
-    skill_id = params.get("skill_id", "kryntis.chat")
-
-    # Normalise input into a list of parts
-    raw_input = params.get("message", {})
-    if isinstance(raw_input, str):
-        parts = [_text_part(raw_input)]
-    elif isinstance(raw_input, dict):
-        parts = raw_input.get("parts", [_text_part(str(raw_input))])
+    if action == "submit":
+        return await _handle_submit(body)
+    elif action == "get":
+        task_id = body.get("taskId", "")
+        return _handle_get(task_id)
+    elif action == "cancel":
+        task_id = body.get("taskId", "")
+        return _handle_cancel(task_id)
     else:
-        parts = []
+        return JSONResponse({"error": f"Unknown A2A action '{action}'."}, status_code=400)
 
-    task = _new_task(task_id, skill_id, parts)
+
+# ── Action Handlers ───────────────────────────────────────────────────────────
+
+async def _handle_submit(body: dict) -> Response:
+    skill_id = body.get("skillId", "kryntis.chat")
+    input_parts = body.get("input", [])
+    stream = body.get("stream", False)
+
+    task_id = str(uuid.uuid4())
+    task = _new_task(task_id, skill_id, input_parts)
     _tasks[task_id] = task
 
-    streaming = params.get("stream", False)
+    log.info("a2a_task_submitted", task_id=task_id, skill=skill_id, stream=stream)
 
-    if streaming:
-        # SSE streaming response
-        async def event_stream():
-            import json
-            # Notify submitted
-            yield f"data: {json.dumps({'id': task_id, 'status': task['status']})}\n\n"
-            await _execute_task(task)
-            yield f"data: {json.dumps(task)}\n\n"
-            yield "data: [DONE]\n\n"
+    # Extract user text from input parts
+    user_text = ""
+    for part in input_parts:
+        if part.get("type") == "text":
+            user_text += part.get("text", "") + "\n"
+        elif part.get("type") == "data":
+            user_text += str(part.get("data", "")) + "\n"
+    user_text = user_text.strip()
 
-        return StreamingResponse(
-            event_stream(),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    if not user_text:
+        task["status"] = {"state": "failed", "timestamp": _iso_now(), "error": "No input text provided."}
+        return JSONResponse(task, status_code=400)
+
+    task["status"] = {"state": "working", "timestamp": _iso_now()}
+
+    if stream:
+        return await _stream_task(task, user_text, skill_id)
+    else:
+        return await _run_task_sync(task, user_text, skill_id)
+
+
+async def _run_task_sync(task: dict, user_text: str, skill_id: str) -> JSONResponse:
+    from kryntis.orchestrator.agent_loop import AIOrchestrator, OrchestratorRequest
+
+    try:
+        orch = AIOrchestrator()
+        req = OrchestratorRequest(
+            session_id=task["id"],
+            user_message=user_text,
+            stream=False,
+            enable_rag=(skill_id in ("kryntis.chat", "kryntis.knowledge_search")),
+            enable_internet=False,
         )
+        res = await orch.chat(req)
 
-    # Non-streaming: execute synchronously and return completed task
-    await _execute_task(task)
+        task["status"] = {"state": "completed", "timestamp": _iso_now()}
+        task["artifacts"] = [
+            {
+                "type": "text",
+                "text": res.response,
+                "metadata": {
+                    "intent": res.intent,
+                    "citations": res.citations,
+                    "ragChunksUsed": res.rag_chunks_used,
+                    "provider": res.provider,
+                    "model": res.model,
+                },
+            }
+        ]
+        return JSONResponse(task)
+
+    except Exception as e:
+        log.error("a2a_task_failed", task_id=task["id"], error=str(e))
+        task["status"] = {"state": "failed", "timestamp": _iso_now(), "error": str(e)}
+        return JSONResponse(task, status_code=500)
+
+
+async def _stream_task(task: dict, user_text: str, skill_id: str) -> StreamingResponse:
+    import json
+    from kryntis.orchestrator.agent_loop import AIOrchestrator, OrchestratorRequest
+
+    orch = AIOrchestrator()
+    req = OrchestratorRequest(
+        session_id=task["id"],
+        user_message=user_text,
+        stream=True,
+        enable_rag=(skill_id in ("kryntis.chat", "kryntis.knowledge_search")),
+        enable_internet=False,
+    )
+
+    async def event_generator():
+        full_text = ""
+        try:
+            async for token in orch.stream_chat(req):
+                full_text += token
+                event = {
+                    "type": "token",
+                    "taskId": task["id"],
+                    "delta": token,
+                }
+                yield f"data: {json.dumps(event)}\n\n"
+
+            task["status"] = {"state": "completed", "timestamp": _iso_now()}
+            task["artifacts"] = [{"type": "text", "text": full_text}]
+            done_event = {
+                "type": "status",
+                "taskId": task["id"],
+                "status": task["status"],
+            }
+            yield f"data: {json.dumps(done_event)}\n\n"
+
+        except Exception as e:
+            task["status"] = {"state": "failed", "timestamp": _iso_now(), "error": str(e)}
+            err_event = {"type": "error", "taskId": task["id"], "error": str(e)}
+            yield f"data: {json.dumps(err_event)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+def _handle_get(task_id: str) -> JSONResponse:
+    task = _tasks.get(task_id)
+    if not task:
+        return JSONResponse({"error": f"Task '{task_id}' not found."}, status_code=404)
+    return JSONResponse(task)
+
+
+def _handle_cancel(task_id: str) -> JSONResponse:
+    task = _tasks.get(task_id)
+    if not task:
+        return JSONResponse({"error": f"Task '{task_id}' not found."}, status_code=404)
+    task["status"] = {"state": "canceled", "timestamp": _iso_now()}
     return JSONResponse(task)

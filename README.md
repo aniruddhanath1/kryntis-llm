@@ -10,6 +10,106 @@
 
 ---
 
+## High-Level Overview
+
+Kryntis AI is an offline-first, sovereign, multi-domain autonomous large language model platform engineered from the ground up for privacy-critical environments, research institutions, and enterprise edge computing.
+
+### Functional Overview
+- **Zero-Cloud Sovereignty:** Operates 100% locally on consumer laptops, workstations, or private server clusters without transmitting prompts, embeddings, or training samples to third-party APIs.
+- **14 Domain-Specific Cognitive Engines:** Pre-configured architectures and synthetic data pipelines tailored for Coding, Artificial General Intelligence (AGI), Healthcare, FinTech, Military, Government, Media, Legal, CyberSecurity, Education, Logistics, Energy, Autonomous Systems, and Scientific Research.
+- **Multimodal Interaction Surface:** Supports rich terminal interactions via an interactive REPL with a built-in Vim modal editor, OpenAPI 3.1 REST endpoints with Swagger UI and ReDoc, Model Context Protocol (MCP JSON-RPC 2.0), Agent-to-Agent (A2A) standard, and bidirectional voice (TTS/STT) ([assistant.py](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/voice/assistant.py)).
+- **Continuous Human-in-the-Loop Alignment:** Features interactive teaching loops and feedback-driven gradient training enabling models to learn from operator corrections directly in real time.
+
+### Technical Overview
+- **Tokenizer-Free Byte-Level Architecture:** Employs direct UTF-8 byte stream processing across a compact 260-token vocabulary ([`byte_processor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py)), eliminating out-of-vocabulary anomalies, subword fragmentation, and tokenizer vulnerability vectors.
+- **Decoder Transformer with KV-Cache:** Built on an autoregressive decoder featuring Rotary Position Embeddings (RoPE), SwiGLU feedforward activation networks, and dynamic Key-Value caching for low-latency generation ([`KryntisTransformer`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py)).
+- **5-Billion Token Virtual Context Stream:** Implements long-term memory persistence and streaming context management via SQLite-backed session repositories ([`SessionRepository`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/session_repository.py)).
+- **Hybrid RAG Retrieval Engine:** Fuses lexical BM25 search with dense vector semantic search using Reciprocal Rank Fusion (RRF) and Cross-Encoder neural reranking ([`HybridRAGEngine`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/rag/hybrid_rag.py)).
+- **Dynamic Multi-Provider Load Balancing:** Intelligent routing supporting Round-Robin, Weighted, and Least-Latency strategies across local PyTorch checkpoints and optional external backends ([`ModelManager`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model_manager.py), [`LoadBalancer`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/load_balancer.py)).
+
+---
+
+## Background Context
+
+Generative AI adoption across enterprises and personal workflows has introduced severe systemic challenges:
+1. **Centralized Cloud Lock-in & Surveillance Risks:** Standard commercial LLMs mandate relaying sensitive code, proprietary algorithms, personal conversations, and compliance records across external cloud networks, violating privacy mandates (GDPR, HIPAA, GLBA, defense regulations).
+2. **Tokenizer Failure Modes:** Subword tokenizers (BPE, SentencePiece) struggle with non-English languages, proprietary code syntax, corrupted byte sequences, and binary inputs, causing token inflation and semantic distortion.
+3. **Hallucination & Lack of Auditability:** Mainstream models often generate confidently incorrect assertions without deterministic grounding verification, causal sanity checks, or adversarial falsification audits.
+4. **Hardware Inefficiency:** High-end models require massive distributed GPU clusters, leaving local workstations and edge hardware unable to run private, intelligent systems autonomously.
+
+Kryntis AI solves these friction points by delivering a tokenizer-free, lightweight, mathematically grounded, and sovereign AI operating layer capable of running entirely offline on standard consumer or server hardware.
+
+---
+
+## Goal
+
+The core mission of Kryntis AI is to provide a complete, sovereign, zero-leakage cognitive stack with the following objectives:
+1. **True On-Premise Sovereignty:** Ensure all model weights, tokenizer operations, context databases, and vector stores reside strictly within the local host environment.
+2. **Universal Byte Processing:** Eliminate vocabulary boundaries and out-of-vocabulary tokens via direct UTF-8 byte modeling.
+3. **5-Billion Token Persistent Context:** Stream and persist lifelong conversational and document memory across local SQLite repositories without memory amnesia.
+4. **Deterministic Anti-Hallucination & Reasoning:** Integrate deterministic grounding verifiers, causal counterfactual simulators, and adversarial self-falsifying logic engines to guarantee factual accuracy.
+5. **Universal Ecosystem Interoperability:** Provide seamless integration across IDEs (PyCharm, VSCode), terminal interfaces (Rich REPL with Vim buffer), open protocols (FastAPI, Swagger, OpenAPI 3.1, MCP, A2A), and hardware backends (CPU, Apple Silicon Metal, NVIDIA CUDA).
+
+---
+
+## Business Value
+
+- **Elimination of Recurring Inference Costs:** Avoid unpredictable and expensive per-token cloud API bills by running inference and fine-tuning entirely on owned local hardware.
+- **Guaranteed Intellectual Property Protection:** Protect confidential source code, financial trade secrets, legal dossiers, and clinical trial records from cloud ingestion or model training absorption.
+- **Regulatory Compliance by Design:** Built-in dynamic privacy masking ([`DynamicPrivacyMasker`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/privacy_masker.py)) automatically strips PII, financial amounts, and healthcare records before processing.
+- **Continuous Offline Operational Reliability:** Mission-critical workflows remain fully operational during internet outages, network partitions, or remote vendor downtime.
+- **Customizable Domain Adaptation:** Rapidly train and fine-tune models on proprietary domain knowledge across 14 vertical datasets without sharing data with third-party vendors.
+
+---
+
+## Problems Addressed with this LLM
+
+| Problem Category | Conventional LLM Limitation | Kryntis AI Solution | Code Subsystem |
+|---|---|---|---|
+| **Data Privacy & Exfiltration** | Prompts and corporate data logged by cloud vendors. | 100% offline local inference; AES-256 Fernet encrypted configs. | [`DynamicPrivacyMasker`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/privacy_masker.py) |
+| **Model Hallucinations** | Confident generation of fabricated facts and sources. | Deterministic grounding checks and lexical overlap verification. | [`GroundingVerifier`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py) |
+| **Logical Contradictions** | Ungrounded claims and legal/academic loopholes. | Adversarial self-falsifying logic auditing for contracts and claims. | [`SelfFalsifyingLogicEngine`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/self_falsifying_logic.py) |
+| **Vocabulary & Token Mismatch** | Fixed vocabularies fail on binary data, rare symbols, and new languages. | Tokenizer-free direct byte processing (260-token vocabulary). | [`byte_processor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py) |
+| **Memory Amnesia** | Context limits truncate older dialogue and historical documents. | 5B virtual token context stream with SQLite session persistence. | [`SessionRepository`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/session_repository.py) |
+| **Single-Provider Dependency** | Service outages disrupt business workflows. | Multi-provider load balancer supporting PyTorch, OpenAI, and Anthropic. | [`LoadBalancer`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/load_balancer.py) |
+
+---
+
+## How It Resolves Real-Life Problems in Day-to-Day Lifestyle
+
+- **Private Personal Knowledge & Research Assistant:** Seamlessly indexes personal documents, research PDFs, notes, and ebooks locally, answering complex queries without leaking private notes to cloud platforms.
+- **Offline Code Development & Pair Programming:** Provides local syntax generation, code refactoring, and debugging directly inside VSCode and PyCharm without requiring internet connectivity.
+- **Secure Personal Financial & Tax Planning:** Ingests bank statements, tax documents, and budgets locally, analyzing spending and forecasting cash-flow while masking account numbers and personal identifiers.
+- **Hands-Free Ambient Voice Assistant:** Enables natural voice-driven conversations, note-taking, and system commands via built-in acoustic STT and formant TTS voice modules ([`assistant.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/voice/assistant.py)).
+- **Strategic Decision & Scenario Simulation:** Helps users evaluate major life and career decisions through causal counterfactual analysis ([`CausalCounterfactualSimulator`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/counterfactual_simulator.py)).
+- **Confidential Health & Wellness Journaling:** Safely processes personal biometric logs, fitness records, and wellness queries with consumer-grade privacy masking.
+
+---
+
+## Features (Functional and Technical)
+
+### Functional Features
+- **14 Pre-Configured Knowledge Domains:** Built-in datasets and training routines for Coding, AGI Reasoning, Healthcare, FinTech, Military, Government, Media, Legal, CyberSecurity, Education, Logistics, Energy, Autonomous Systems, and Scientific Research.
+- **Multi-Interface Modalities:** Full-featured Terminal REPL with Vim modal editing, interactive OpenAPI 3.1 Swagger/ReDoc UI, FastAPI REST endpoints, MCP JSON-RPC 2.0 gateway, and A2A discovery card.
+- **Interactive Human-in-the-Loop Teaching:** Real-time feedback recording (`python main.py train-interactive`) and gradient fine-tuning on user corrections (`python main.py train-user-input`).
+- **Emotional Intelligence & Empathy Framing:** Analyzes user sentiment polarity and urgency to dynamically adapt response framing ([`EmotionalIntelligenceEngine`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/emotional_intelligence.py)).
+- **Causal Counterfactual Simulation:** Evaluates multi-tiered primary impacts, secondary effects, and risk scores for what-if intervention scenarios.
+- **Adversarial Self-Falsification Auditing:** Actively audits contracts for uncapped liability, academic assertions for unsupported causal claims, and general text for ungrounded absolutes.
+- **Universal Document & Media Ingestion:** Ingests documents (PDF, Markdown, HTML, Code, CSV, JSON) up to 100MB and audio/video media up to 10MB with chunk routing.
+
+### Technical Features
+- **Tokenizer-Free Byte-Direct Engine:** 260-token vocabulary (`PAD=0`, `0-255` UTF-8 bytes, `BOS=256`, `EOS=257`, `UNK=258`, `MASK=259`) avoiding BPE vocabulary mismatch.
+- **Transformer Decoder with RoPE & SwiGLU:** Autoregressive multi-head attention with rotary positional embeddings and dynamic KV-Cache acceleration ([`KryntisTransformer`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py)).
+- **AdamW Optimization & Gradient Accumulation:** Configured with AdamW optimization, gradient accumulation (effective batch size 32), and gradient norm clipping ($1.0$).
+- **5-Billion Token Virtual Session Memory:** Long-term streaming session persistence powered by SQLite repository storage.
+- **Hybrid Reciprocal Rank Fusion (RRF) RAG:** Fuses sparse BM25 keyword rankings with dense vector embeddings and Cross-Encoder neural reranking.
+- **Dynamic Multi-Backend Load Balancing:** Supports Round-Robin, Weighted, and Least-Latency routing across local PyTorch checkpoints and optional external APIs.
+- **Multi-Subagent Autonomous Architecture:** Orchestrates collaborative subagents including Planner, Executor, Verifier, Causal Reasoner, and Critic ([`AgentSystem`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/subagents/agent_system.py)).
+- **Multi-Tier Rate Limiting & Security Guardrails:** Dual Token-Bucket and Sliding-Window rate limiters, SSRF validation, prompt injection shields, and Fernet AES-256 environment secret encryption.
+- **Production-Grade Daemon & Container Support:** Docker with NVIDIA GPU passthrough, Docker Compose, Linux systemd daemon, Nginx SSL reverse proxy, and Kubernetes manifests.
+
+---
+
 ## 5-Year Model Release Roadmap
 
 | Year | Model Release Name | Focus & Architectural Paradigm |
@@ -22,30 +122,225 @@
 
 ---
 
-## Model Training & Regression Rules of Thumb
+## Model Training & Grounding Rules of Thumb
 
-Kryntis AI relies on a deterministic mathematical optimization foundation and formal regression rules for model pretraining, fine-tuning, and alignment:
+Kryntis trains a byte-level autoregressive model with cross-entropy loss, AdamW optimization, gradient accumulation, and gradient-norm clipping. Its grounding verifier currently uses deterministic query checks and lexical overlap—not cosine scheduling or calibrated sigmoid regression.
 
-### 1. Autoregressive Byte-Level Objective Function
-The core Transformer is trained by minimizing the cross-entropy negative log-likelihood (NLL) over the sequence of direct UTF-8 byte representations:
-$$
-\mathcal{L}_{\mathrm{NLL}}(\theta) = -\frac{1}{T} \sum_{t=1}^{T} \log P_{\theta}(x_{t} \mid x_{\lt t})
-$$
+### 1. Byte-Level Autoregressive Cross-Entropy
 
-### 2. Learning Rate Schedule with Cosine Annealing
-Training follows a linear warmup followed by a cosine decay schedule down to $10\%$ of peak learning rate $\eta_{\max}$:
-$$\eta_t = \eta_{\min} + \frac{1}{2}(\eta_{\max} - \eta_{\min})\left(1 + \cos\left(\frac{\pi t}{T_{\text{max}}}\right)\right)$$
-- **Warmup steps**: First $5\%$ of total training steps.
-- **AdamW hyperparameters**: $\beta_1 = 0.9, \beta_2 = 0.95, \epsilon = 10^{-8}$, Weight Decay $\lambda = 0.01$.
+[`ByteDirectProcessor`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py#L12-L36) encodes input text as UTF-8 byte values. The training configuration uses a vocabulary size of 260: byte values `0` through `255` plus four reserved control-token IDs (`PAD=0`, `BOS=256`, `EOS=257`, `UNK=258`, `MASK=259`).
 
-### 3. Gradient Norm Thresholding (Rule of Thumb)
-To avoid gradient explosion across deep attention layers:
-$$g_{\text{clipped}} = g \cdot \min\left(1, \frac{\tau}{\|g\|_2}\right) \quad \text{where } \tau = 1.0$$
+For model logits $z_i$ and target token $y_i$ at position $i$, the cross-entropy loss is:
 
-### 4. Factual Grounding Calibration Regression
-To eliminate hallucinations and quantify answer reliability, retrieved context relevance and model response grounding are scored via a calibrated sigmoid regression metric:
-$$S_{\text{grounding}} = \sigma\left(\mathbf{w}^T \left[ \text{sim}_{\text{dense}}, \text{score}_{\text{BM25}}, \text{overlap}_{\text{lexical}}, \text{depth}_{\text{session}} \right]^T + b\right)$$
-If $S_{\text{grounding}} < 0.65$, the orchestrator triggers an automatic user clarification prompt.
+$$\mathcal{L}_{\mathrm{CE}} = -\frac{1}{N} \sum_{i=1}^{N} \log \left( \frac{\exp(z_{i,y_i})}{\sum_{k=1}^{V}\exp(z_{i,k})} \right)$$
+
+This is the mean negative log-likelihood implemented through `torch.nn.CrossEntropyLoss()` in [`kryntis/training/trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py#L54-L86) and `torch.nn.functional.cross_entropy()` in [`kryntis/core/model.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py#L218-L232).
+
+Next-token target labels are constructed by shifting the input token sequence by 1 position:
+
+$$y_t = x_{t+1}$$
+
+The final position is assigned the configured padding-token ID and ignored by the loss function.
+
+#### Code References & Implementation Blocks
+
+- **Byte Vocabulary Definition:** [`ByteDirectProcessor`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py#L12-L30) in [`kryntis/core/byte_processor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py)
+```python
+class ByteDirectProcessor:
+    PAD_BYTE = 0
+    BOS_BYTE = 256
+    EOS_BYTE = 257
+    UNK_BYTE = 258
+    MASK_BYTE = 259
+
+    VOCAB_SIZE = 260
+```
+
+- **Next-Token Label Shifting ($y_t = x_{t+1}$):** [`StreamingCodeDataset.__iter__`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/dataset_loader.py#L48-L53) in [`kryntis/training/dataset_loader.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/dataset_loader.py)
+```python
+# Yield full sequence chunks with shifted targets
+while len(token_buffer) >= self.max_seq_len + 1:
+    chunk = token_buffer[: self.max_seq_len + 1]
+    token_buffer = token_buffer[self.max_seq_len :]
+
+    x = torch.tensor(chunk[:-1], dtype=torch.long)
+    y = torch.tensor(chunk[1:], dtype=torch.long)
+    yield {"input_ids": x, "labels": y}
+```
+
+- **Autoregressive Loss Computation:** [`KryntisTransformer.get_loss`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py#L218-L232) in [`kryntis/core/model.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py)
+```python
+def get_loss(
+    self,
+    input_ids: torch.Tensor,
+    labels: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Compute cross-entropy language modelling loss."""
+    logits, _ = self.forward(input_ids)
+    if labels is None:
+        labels = torch.roll(input_ids, -1, dims=1)
+        labels[:, -1] = self.cfg.pad_token_id
+
+    loss = F.cross_entropy(
+        logits.view(-1, self.cfg.vocab_size),
+        labels.view(-1),
+        ignore_index=self.cfg.pad_token_id,
+    )
+    return loss
+```
+
+---
+
+### 2. AdamW Optimization
+
+The trainer constructs `torch.optim.AdamW` with the configured learning rate and weight decay:
+
+$$\theta_{t+1} = \theta_t - \eta \left( \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} + \lambda \theta_t \right)$$
+
+Current default training values are:
+
+- Learning rate: $\eta = 3 \times 10^{-4}$
+- Weight decay: $\lambda = 0.01$
+- Physical batch size: $2$
+- Gradient-accumulation steps: $16$
+
+`TrainingConfig` defines `min_lr` and `warmup_steps`, but the current trainer does not create or step a learning-rate scheduler. Therefore, this implementation uses the AdamW learning rate as configured rather than cosine annealing or warmup.
+
+#### Code References & Implementation Blocks
+
+- **AdamW Optimizer Initialization:** [`Trainer.__init__`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py#L50-L54) in [`kryntis/training/trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py)
+```python
+self.optimizer = AdamW(
+    self.model.parameters(),
+    lr=self.cfg.learning_rate,
+    weight_decay=self.cfg.weight_decay,
+)
+```
+
+- **Hyperparameter Configuration:** [`TrainingConfig`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/config.py#L21-L26) in [`kryntis/training/config.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/config.py)
+```python
+# Optimization defaults
+batch_size: int = 2                # Physical batch size
+grad_accum_steps: int = 16         # Effective batch size = 32
+learning_rate: float = 3e-4        # eta = 3 * 10^-4
+min_lr: float = 3e-5
+weight_decay: float = 0.01         # lambda = 0.01
+```
+
+---
+
+### 3. Gradient Accumulation and Norm Clipping
+
+Each micro-batch loss is divided by the accumulation count $A$ before backpropagation:
+
+$$g_t = \sum_{j=1}^{A} \frac{1}{A} \nabla_\theta \mathcal{L}_j$$
+
+After every $A = 16$ micro-batches, the trainer clips the total gradient norm to $1.0$ before calling `optimizer.step()`:
+
+$$\tilde{g}_t = g_t \cdot \min \left( 1, \frac{1.0}{\lVert g_t\rVert_2} \right)$$
+
+Thus:
+
+$$\lVert\tilde{g}_t\rVert_2 = \min \left( \lVert g_t\rVert_2, 1.0 \right) \le 1.0$$
+
+This preserves the gradient direction whenever clipping is applied while bounding its norm before the parameter update.
+
+#### Code References & Implementation Blocks
+
+- **Gradient Accumulation & Norm Clipping Step:** [`Trainer.train`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py#L82-L93) in [`kryntis/training/trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py)
+```python
+logits, _ = self.model(x)
+loss = self.criterion(logits.view(-1, self.cfg.vocab_size), y.view(-1))
+loss = loss / self.cfg.grad_accum_steps
+loss.backward()
+
+accumulated_loss += loss.item() * self.cfg.grad_accum_steps
+
+if (self.step + 1) % self.cfg.grad_accum_steps == 0:
+    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+    self.optimizer.step()
+    self.optimizer.zero_grad()
+```
+
+---
+
+### 4. Deterministic Grounding and Clarification Checks
+
+[`GroundingVerifier`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L28-L98) uses rule-based checks for short or ambiguous queries. A non-greeting query with fewer than three words requires clarification:
+
+$$\operatorname{clarify}(q) = \begin{cases} \text{true}, & |\operatorname{words}(q)| < 3 \\ \text{false}, & \text{otherwise} \end{cases}$$
+
+When clarification is required, the verifier returns a confidence score of $0.4$; otherwise, it returns $0.9$.
+
+For generated responses with reference chunks, the verifier calculates lexical overlap:
+
+$$r = \frac{\left| \left\{ w \in W_{\mathrm{response}} : |w| > 4 \land w \in T_{\mathrm{references}} \right\} \right|}{\max(1, |W_{\mathrm{response}}|)}$$
+
+The response is considered grounded when:
+
+$$r \ge 0.15$$
+
+Its reported confidence is:
+
+$$c = \min(1.0, 2r)$$
+
+If no reference chunks are supplied, the current implementation returns `is_grounded = true` with confidence $0.85$. The constructor stores a `confidence_threshold` of $0.65$, but the current decision paths do not use it.
+
+#### Code References & Implementation Blocks
+
+- **Query Ambiguity Evaluation ($\operatorname{clarify}(q)$):** [`GroundingVerifier.evaluate_query`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L34-L67) in [`kryntis/orchestrator/grounding_verifier.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py)
+```python
+def evaluate_query(self, user_query: str, retrieved_sources: Sequence[dict] | None = None) -> GroundingCheckResult:
+    query_clean = user_query.strip().lower()
+    ambiguities = []
+
+    # Check for overly vague queries (< 3 words)
+    if len(query_clean.split()) < 3 and not any(k in query_clean for k in ["hi", "hello", "help", "status", "version"]):
+        ambiguities.append("Query is very brief and may lack sufficient context.")
+
+    requires_clarification = len(ambiguities) > 0
+
+    clarification_msg = None
+    if requires_clarification:
+        clarification_msg = f"To provide an accurate and grounded response, could you please clarify or provide additional details regarding: {', '.join(ambiguities)}?"
+
+    return GroundingCheckResult(
+        is_grounded=not requires_clarification,
+        requires_user_clarification=requires_clarification,
+        clarification_prompt=clarification_msg,
+        confidence_score=0.9 if not requires_clarification else 0.4,
+        detected_ambiguities=ambiguities,
+    )
+```
+
+- **Lexical Overlap & Groundedness Verification ($r \ge 0.15$, $c = \min(1.0, 2r)$):** [`GroundingVerifier.verify_grounded_response`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py#L69-L98) in [`kryntis/orchestrator/grounding_verifier.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py)
+```python
+def verify_grounded_response(
+    self,
+    response_text: str,
+    reference_chunks: Sequence[dict] | None = None,
+) -> GroundingCheckResult:
+    if not reference_chunks or len(reference_chunks) == 0:
+        return GroundingCheckResult(
+            is_grounded=True,
+            requires_user_clarification=False,
+            confidence_score=0.85,
+        )
+
+    # Basic lexical overlap check against reference documents
+    ref_texts = " ".join([c.get("text", "") for c in reference_chunks]).lower()
+    resp_words = set(response_text.lower().split())
+    matched_words = [w for w in resp_words if len(w) > 4 and w in ref_texts]
+
+    overlap_ratio = len(matched_words) / max(1, len(resp_words))
+    is_grounded = overlap_ratio >= 0.15
+
+    return GroundingCheckResult(
+        is_grounded=is_grounded,
+        requires_user_clarification=not is_grounded,
+        confidence_score=min(1.0, overlap_ratio * 2.0),
+    )
+```
 
 ---
 
@@ -57,6 +352,118 @@ If $S_{\text{grounding}} < 0.65$, the orchestrator triggers an automatic user cl
 | **2. Causal Counterfactual Simulation** | **Risk & Market Modeling:** Allows executives to simulate stress-test scenarios (e.g. supply chain collapse during inflation spikes). | **Hypothesis Testing:** Lets researchers run thousands of in-silico "what-if" simulations for drug discovery or climate physics before physical lab work. | **Empathetic Decision Support:** Acts as a lifecoach simulator, allowing users to safely test interpersonal boundary outcomes. |
 | **3. Self-Falsifying Logic** | **Flawless Compliance & Legal Audit:** Checks contract generation for hidden loopholes or contradictions by actively trying to break the legal clauses it generated. | **Academic Peer Review:** Acts as an immediate internal peer reviewer, finding statistical anomalies or logical leaps in a paper before publication. | **Anti-Hallucination & Fact Guard:** Eradicates confidently incorrect advice, ensuring users do not receive ungrounded claims. |
 
+### Code References & Implementation Subsystems
+
+#### 1. Dynamic Privacy Masking Subsystem
+- **Class:** [`DynamicPrivacyMasker`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/privacy_masker.py#L32-L108)
+- **Module:** [`kryntis/security/privacy_masker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/privacy_masker.py)
+- **Key Methods:** `mask(text, scope)` and `unmask(masked_text, entity_map)`
+- **Scopes Supported:** `PrivacyScope.ENTERPRISE`, `PrivacyScope.SCIENTIFIC`, `PrivacyScope.CONSUMER`, `PrivacyScope.ALL`
+
+```python
+class DynamicPrivacyMasker:
+    """Sanitizes sensitive information before processing or persistence."""
+
+    def __init__(self, default_scope: PrivacyScope = PrivacyScope.ALL) -> None:
+        self.default_scope = default_scope
+
+        # Consumer PII patterns
+        self._credit_card_re = re.compile(r"\b(?:\d{4}[ -]?){3}\d{4}\b")
+        self._email_re = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+        self._phone_re = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
+        self._ssn_re = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+        self._address_re = re.compile(r"\b\d{1,5}\s+([A-Za-z0-9.\s]+)\s+(Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Way|Lane|Ln)\b", re.IGNORECASE)
+
+        # Enterprise patterns
+        self._financial_deal_re = re.compile(r"\b(?:\$|USD|EUR|GBP|₹)\s?\d+(?:,\d{3})*(?:\.\d+)?\s*(?:million|billion|trillion|M|B|k)?\b", re.IGNORECASE)
+        self._ma_keyword_re = re.compile(r"\b(Project\s+[A-Z][a-z]+|merger\s+with\s+[A-Z][a-zA-Z]+|acquisition\s+target\s+[A-Z][a-zA-Z]+)\b")
+        self._api_key_re = re.compile(r"\b(?:sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|AKIA[0-9A-Z]{16})\b")
+
+        # Scientific & Healthcare patterns
+        self._patient_id_re = re.compile(r"\b(?:MRN|PATIENT[-_]?ID|DOB|SUBJECT[-_]?\d+)\s*[:#]?\s*[A-Za-z0-9-]+\b", re.IGNORECASE)
+        self._chemical_formula_re = re.compile(r"\b(?:[A-Z][a-z]?\d*){3,}\s*(?:proprietary|compound|inhibitor)\b", re.IGNORECASE)
+
+    def mask(self, text: str, scope: PrivacyScope | None = None) -> MaskingResult:
+        active_scope = scope or self.default_scope
+        masked = text
+        entity_map: dict[str, str] = {}
+        ...
+```
+
+#### 2. Causal Counterfactual Simulation Subsystem
+- **Class:** [`CausalCounterfactualSimulator`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/counterfactual_simulator.py#L35-L88)
+- **Module:** [`kryntis/reasoning/counterfactual_simulator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/counterfactual_simulator.py)
+- **Key Method:** `simulate(scenario: CounterfactualScenario) -> SimulationOutcome`
+- **Domains Supported:** `SimulationDomain.ENTERPRISE`, `SimulationDomain.SCIENTIFIC`, `SimulationDomain.INTERPERSONAL`
+
+```python
+class CausalCounterfactualSimulator:
+    """Executes structured causal chain analysis and counterfactual simulation."""
+
+    def simulate(self, scenario: CounterfactualScenario) -> SimulationOutcome:
+        dom = scenario.domain
+        if dom == SimulationDomain.ENTERPRISE:
+            primary_impacts.append(f"Immediate cash-flow and operational margin shift triggered by: '{scenario.counterfactual_intervention}'")
+            primary_impacts.append("Critical vendor delivery lead times expand across affected logistics tiers.")
+            secondary_effects.append("Secondary inventory shortages and expedited freight cost surcharges.")
+            risk_score = 0.78
+        elif dom == SimulationDomain.SCIENTIFIC:
+            primary_impacts.append(f"Perturbation of core equilibrium state via '{scenario.counterfactual_intervention}'.")
+            primary_impacts.append("Binding affinity / thermal reaction threshold shift predicted in-silico.")
+            secondary_effects.append("Downstream metabolic pathway or physical dispersion dynamics deviation.")
+            risk_score = 0.45
+        else:  # INTERPERSONAL
+            primary_impacts.append(f"Initial emotional reaction and boundary recognition from: '{scenario.counterfactual_intervention}'.")
+            secondary_effects.append("Shift in communication rhythm, emotional safety, and long-term expectation clarity.")
+            risk_score = 0.35
+        ...
+```
+
+#### 3. Self-Falsifying Logic Subsystem
+- **Class:** [`SelfFalsifyingLogicEngine`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/self_falsifying_logic.py#L36-L100)
+- **Module:** [`kryntis/reasoning/self_falsifying_logic.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/self_falsifying_logic.py)
+- **Key Method:** `audit(text: str, scope: AuditScope) -> FalsificationAuditResult`
+- **Scopes Supported:** `AuditScope.LEGAL_COMPLIANCE`, `AuditScope.ACADEMIC_REVIEW`, `AuditScope.FACT_GUARD`
+
+```python
+class SelfFalsifyingLogicEngine:
+    """Applies adversarial falsification strategies to check assertions for weaknesses."""
+
+    def audit(self, text: str, scope: AuditScope = AuditScope.FACT_GUARD) -> FalsificationAuditResult:
+        vulnerabilities: list[FalsificationVulnerability] = []
+        text_lower = text.lower()
+
+        if scope == AuditScope.LEGAL_COMPLIANCE:
+            if "indemnif" in text_lower and not ("sole" in text_lower or "capped" in text_lower or "gross negligence" in text_lower):
+                vulnerabilities.append(FalsificationVulnerability(
+                    clause_or_claim="Indemnification clause",
+                    attack_vector="Uncapped liability vulnerability: An opposing party could claim consequential damages without limitation.",
+                    severity="high",
+                    remediation_suggestion="Add explicit monetary liability cap and carve-out for indirect/consequential damages.",
+                ))
+        elif scope == AuditScope.ACADEMIC_REVIEW:
+            causal_markers = ["proves that", "undeniably caused", "always results in", "100% effective"]
+            for marker in causal_markers:
+                if marker in text_lower:
+                    vulnerabilities.append(FalsificationVulnerability(
+                        clause_or_claim=f"Assertion with '{marker}'",
+                        attack_vector="Over-generalized causal claim without confidence interval (p-value / error margin).",
+                        severity="high",
+                        remediation_suggestion="Moderate claim to state correlation or provide empirical confidence bounds.",
+                    ))
+        else:  # FACT_GUARD
+            unsupported_absolutes = ["is guaranteed to", "without any doubt", "completely impossible"]
+            for marker in unsupported_absolutes:
+                if marker in text_lower:
+                    vulnerabilities.append(FalsificationVulnerability(
+                        clause_or_claim=f"Absolute claim containing '{marker}'",
+                        attack_vector="Unverified absolute statement vulnerable to counter-examples.",
+                        severity="medium",
+                        remediation_suggestion="Ground the assertion with verified source citations or probabilistic nuance.",
+                    ))
+        ...
+```
+
 ---
 
 ## Complete Architecture
@@ -67,7 +474,7 @@ The Kryntis AI platform is built upon a modular, clean, and extensible architect
 
 ```mermaid
 graph TD
-    subgraph Client & Gateway Layer
+    subgraph Client and Gateway Layer
         CLI[Terminal CLI / Interactive REPL]
         IDE[PyCharm & VSCode Run Profiles]
         SWAGGER[OpenAPI Swagger UI /docs & ReDoc /redoc]
@@ -77,7 +484,7 @@ graph TD
         A2A_GATEWAY[A2A Protocol /.well-known/agent.json]
     end
 
-    subgraph Security & Ingestion Layer
+    subgraph Security and Ingestion Layer
         RATE_LIMIT[TokenBucket & SlidingWindow Rate Limiter]
         PROMPT_GUARD[Prompt Injection & PII Guardrails]
         PRIVACY_MASK[Dynamic Privacy Masker Enterprise/Scientific/Consumer]
@@ -86,7 +493,7 @@ graph TD
         CHUNK_ROUTER[Universal ChunkRouter Audio/Video/PDF/Code/HTML]
     end
 
-    subgraph Core Cognitive & Orchestration
+    subgraph Core Cognitive and Orchestration
         ORCH[AI Cognitive Orchestrator]
         EQ_ENGINE[Emotional Intelligence EQ Engine]
         COUNTERFACTUAL[Causal Counterfactual Simulator]
@@ -95,14 +502,14 @@ graph TD
         LOAD_BALANCER[Dynamic Model Load Balancer RoundRobin/Weighted/LeastLatency]
     end
 
-    subgraph SOLID Persistence & Memory Repository Layer
+    subgraph SOLID Persistence and Memory Repository Layer
         SESSION_REPO[ISessionRepository SQLite 5B Context Stream]
         DOC_REPO[IDocumentRepository SQLite Document Store]
         KNOW_REPO[IKnowledgeRepository Vector & Hybrid Semantic Store]
         RAG_ENGINE[Hybrid BM25 + Vector RRF + Cross-Encoder Reranker]
     end
 
-    subgraph Neural Execution & Self-Training
+    subgraph Neural Execution and Self-Training
         BYTE_DIRECT[ByteDirectProcessor Tokenizer-Free Vocab 260]
         KV_CACHE[Autoregressive KV-Cache Manager]
         TRANSFORMER[Decoder Transformer v4 Neural Engine]
@@ -285,7 +692,7 @@ python main.py serve
 Training models in Kryntis AI is completely standalone and does not require Ollama or background daemons. Training runs sequentially one domain at a time:
 
 ```bash
-# ── Step 1: Process Datasets per Domain ────────────────────────────────────────
+# ── Step 1: Process Datasets per Domain ──────────────────────────────────────────
 python main.py process-datasets --domain coding
 python main.py process-datasets --domain agi
 python main.py process-datasets --domain healthcare
@@ -303,7 +710,7 @@ python main.py train --domain military
 python main.py train --domain government
 python main.py train --domain media
 
-# ── Step 3: Train from User Feedback & Corrections ─────────────────────────────
+# ── Step 3: Train from User Feedback & Corrections ────────────────────────────
 python main.py train-interactive     # Interactive human teaching loop
 python main.py train-user-input       # Run gradient steps on recorded user feedback
 ```
@@ -535,127 +942,315 @@ Once the server is running (`python main.py serve`), access the interactive API 
 
 ## File Structure & Purpose Table
 
-| File Path | Component | Purpose & Description |
+The following comprehensive breakdown details every file, module, and subsystem across the Kryntis AI repository.
+
+### 1. Root Configuration, Environments & Documentation
+
+| File Path | Subsystem | Purpose & Description |
 |---|---|---|
-| `.gitignore` | Repository Config | Ignores venv, caches, checkpoints, databases, keys, and IDE user states |
-| `main.py` | CLI Entrypoint | Command-line dispatch for training, serving, dataset generation, voice, and chat |
-| `.vscode/launch.json` | IDE Config | VSCode debug & execution launch configurations |
-| `.vscode/tasks.json` | IDE Config | VSCode build & training task definitions |
-| `.idea/runConfigurations/*` | IDE Config | PyCharm 1-click execution run configurations |
-| `pyproject.toml` | Build Config | Project metadata, dependencies, and v4.0.0 version configuration |
-| `requirements.txt` | Dependencies | Production Python requirements (PyTorch, FastAPI, Uvicorn, etc.) |
-| `requirements-dev.txt` | Dev Dependencies | Development tools, pytest, flake8, mypy |
-| `config/default.yaml` | Configuration | Master system configuration (memory, RAG, providers, tools, voice) |
-| `config/logging.yaml` | Logging | Structured structlog and standard logging settings |
-| `assets/kryntis-banner.svg` | Branding | High-resolution modern cybernetic project banner |
-| `assets/kryntis-dataflow.svg` | Documentation | End-to-end architecture and data flow diagram |
-| `kryntis/__init__.py` | Core Package | Package root and global version constants |
-| `kryntis/chunking/base.py` | Chunking | `Chunk` dataclass and abstract `BaseChunker` base class |
-| `kryntis/chunking/chunk_router.py` | Chunking | Central router dispatching files to format-specific chunkers |
-| `kryntis/chunking/audio_chunker.py` | Multimodal | Acoustic and waveform segment chunker for audio (≤10 MB limit) |
-| `kryntis/chunking/video_chunker.py` | Multimodal | Temporal scene and keyframe metadata chunker for video (≤10 MB limit) |
-| `kryntis/chunking/text_chunker.py` | Chunking | Plain text, markdown, and unstructured text chunker |
-| `kryntis/chunking/code_chunker.py` | Chunking | AST-aware syntax chunker for 40+ programming languages |
-| `kryntis/chunking/pdf_chunker.py` | Chunking | Page-aware PDF document parser and text extractor |
-| `kryntis/chunking/docx_chunker.py` | Chunking | Microsoft Word DOCX paragraph and table chunker |
-| `kryntis/chunking/pptx_chunker.py` | Chunking | PowerPoint presentation slide and notes extractor |
-| `kryntis/chunking/spreadsheet_chunker.py` | Chunking | Excel (.xlsx) and CSV tabular row/column chunker |
-| `kryntis/chunking/html_chunker.py` | Chunking | DOM and semantic HTML tag cleaner and chunker |
-| `kryntis/chunking/json_chunker.py` | Chunking | Structural JSON and JSONL key-value hierarchical chunker |
-| `kryntis/chunking/image_chunker.py` | Multimodal | Image metadata and OCR visual document chunker |
-| `kryntis/core/model.py` | Core Model | DecoderTransformer v4 with autoregressive KV-Cache |
-| `kryntis/core/byte_processor.py` | Core Model | Tokenizer-Free direct Byte/ASCII processor (0-255 mapping) |
-| `kryntis/core/load_balancer.py` | Core Architecture | RoundRobin, Weighted, and LeastLatency provider load balancers |
-| `kryntis/core/word_tokenizer.py` | Core Model | Natural English word tokenizer with fallback vocab |
-| `kryntis/core/tokenizer.py` | Core Model | BPE Byte-Pair Encoding tokenizer |
-| `kryntis/core/tokenizer_trainer.py` | Core Model | In-process BPE vocabulary trainer |
-| `kryntis/core/inference.py` | Inference | Unified generation and streaming inference engine |
-| `kryntis/core/model_manager.py` | Inference | Multi-backend provider lifecycle and health monitoring |
-| `kryntis/core/emotional_intelligence.py` | EQ Engine | Emotional tone analysis, empathy scoring, and prompt adjustment |
-| `kryntis/core/providers/base.py` | Providers | Abstract base class for LLM backends |
-| `kryntis/core/providers/local_provider.py` | Providers | Direct PyTorch checkpoint local model execution provider |
-| `kryntis/core/providers/openai_provider.py` | Providers | OpenAI API client adapter |
-| `kryntis/core/providers/anthropic_provider.py` | Providers | Anthropic Claude API client adapter |
-| `kryntis/datasets/catalog.py` | Datasets | 14-domain dataset catalog and open-source model registry |
-| `kryntis/datasets/downloader.py` | Datasets | Asynchronous GitHub repo and dataset source downloader |
-| `kryntis/datasets/processor.py` | Datasets | Raw file cleaner and standardized JSONL corpus builder |
-| `kryntis/datasets/synthetic_generator.py` | Datasets | Multi-domain synthetic training data generator |
-| `kryntis/evaluation/rag_evaluator.py` | Evaluation | Groundedness, answer relevancy, and context recall evaluator |
-| `kryntis/ingestion/pipeline.py` | Ingestion | Streaming file and text ingestion orchestrator |
-| `kryntis/ingestion/validator.py` | Ingestion | File MIME type, extension, and 10 MB media size validator |
-| `kryntis/ingestion/progress.py` | Ingestion | Asynchronous job progress tracking and metrics |
-| `kryntis/internet/research_pipeline.py` | Internet | End-to-end web search, scraping, and synthesis pipeline |
-| `kryntis/internet/searcher.py` | Internet | DuckDuckGo and Brave Search API client |
-| `kryntis/internet/fetcher.py` | Internet | Concurrent HTTP webpage downloader with rate limiting |
-| `kryntis/internet/extractor.py` | Internet | HTML text extractor and readability cleaner |
-| `kryntis/internet/citation_builder.py` | Internet | Source citation formatter and URL tracker |
-| `kryntis/internet/validator.py` | Internet | Source trust scoring and credibility verifier |
-| `kryntis/knowledge/vector_store.py` | Knowledge | In-memory and disk-backed cosine similarity vector store |
-| `kryntis/knowledge/document_store.py` | Knowledge | Document metadata and chunk SQLite storage |
-| `kryntis/knowledge/pgvector_adapter.py` | Knowledge | PostgreSQL + pgvector enterprise storage adapter |
-| `kryntis/knowledge/knowledge_graph.py` | Knowledge | Entity-relation knowledge graph indexer |
-| `kryntis/knowledge/provenance.py` | Knowledge | Document origin and tamper-evident hash tracker |
-| `kryntis/learning/continual_learner.py` | Learning | Confidence-gated chunked continual learning queue |
-| `kryntis/learning/user_trainer.py` | Learning | Direct user-interaction training and fine-tuning engine |
-| `kryntis/learning/versioning.py` | Learning | Model weight and checkpoint snapshot versioning |
-| `kryntis/memory/session_context_manager.py` | Memory | 5 Billion (5B) virtual session context streaming engine |
-| `kryntis/memory/short_term.py` | Memory | Active sliding conversational memory buffer |
-| `kryntis/memory/long_term.py` | Memory | Semantic long-term memory retrieval layer |
-| `kryntis/memory/episodic.py` | Memory | Episodic conversation log manager |
-| `kryntis/memory/consolidator.py` | Memory | Memory summarization and consolidation background worker |
-| `kryntis/orchestrator/agent_loop.py` | Orchestrator | Central AI cognitive orchestrator coordinating EQ, RAG, and tools |
-| `kryntis/orchestrator/grounding_verifier.py` | Orchestrator | Zero-hallucination factual verifier & ambiguity clarification prompter |
-| `kryntis/orchestrator/intent_router.py` | Orchestrator | Intent classification and routing engine |
-| `kryntis/orchestrator/prompt_builder.py` | Orchestrator | Grounded prompt constructor with EQ modifiers |
-| `kryntis/orchestrator/task_planner.py` | Orchestrator | Multi-step task decomposition and planning planner |
-| `kryntis/rag/embedder.py` | RAG | Dense vector text embedding generator |
-| `kryntis/rag/retriever.py` | RAG | Hybrid BM25 + Dense vector retriever with RRF |
-| `kryntis/rag/reranker.py` | RAG | Cross-encoder relevance reranker |
-| `kryntis/rag/context_builder.py` | RAG | Grounded RAG context assembler with citation indices |
-| `kryntis/reasoning/counterfactual_simulator.py` | Reasoning | Causal counterfactual what-if simulation engine |
-| `kryntis/reasoning/self_falsifying_logic.py` | Reasoning | Adversarial legal, academic, and anti-hallucination auditor |
-| `kryntis/repositories/base.py` | Repositories | Generic SOLID repository interfaces (IRepository, IDocumentRepository) |
-| `kryntis/repositories/document_repository.py` | Repositories | SQLite document and chunk persistence repository |
-| `kryntis/repositories/session_repository.py` | Repositories | SQLite session dialogue and turn persistence repository |
-| `kryntis/repositories/knowledge_repository.py` | Repositories | Vector and semantic knowledge persistence repository |
-| `kryntis/security/guardrails.py` | Security | Comprehensive input/output safety guardrails |
-| `kryntis/security/prompt_guard.py` | Security | Prompt injection and jailbreak detector |
-| `kryntis/security/privacy_masker.py` | Security | Dynamic privacy masker (Zero-leak, double-blind, PII) |
-| `kryntis/security/output_sanitizer.py` | Security | PII scrubber and toxic output sanitizer |
-| `kryntis/security/rate_limiter.py` | Security | SOLID TokenBucket, SlidingWindow, and MultiTier rate limiters |
-| `kryntis/service/app.py` | Service | FastAPI application definition and OpenAPI / Swagger configuration |
-| `kryntis/service/dependencies.py` | Service | Dependency injection providers for routers |
-| `kryntis/service/middleware.py` | Service | Authentication, rate limiting, and request logging middleware |
-| `kryntis/service/routers/chat.py` | Service | SSE streaming and standard chat API endpoints |
-| `kryntis/service/routers/ingestion.py` | Service | Multipart file and raw text ingestion API endpoints |
-| `kryntis/service/routers/knowledge.py` | Service | Knowledge base query and management endpoints |
-| `kryntis/service/routers/admin.py` | Service | Health, provider status, continual learning, and user training API |
-| `kryntis/service/routers/voice.py` | Service | Text-to-Speech, Speech-to-Text, and voice conversation API |
-| `kryntis/service/routers/mcp.py` | Service | Model Context Protocol JSON-RPC 2.0 endpoints |
-| `kryntis/service/routers/a2a.py` | Service | Agent-to-Agent protocol and agent card endpoints |
-| `kryntis/tools/tool_registry.py` | Tools | Dynamic AI tool registration, schema generator, and execution engine |
-| `kryntis/tools/code_interpreter.py` | Tools | Sandboxed Python code interpreter tool |
-| `kryntis/tools/calculator.py` | Tools | Precision math and scientific calculation tool |
-| `kryntis/tools/file_system.py` | Tools | Workspace file reader and directory listing tool |
-| `kryntis/tools/web_browser.py` | Tools | Web page fetch and text scraper tool |
-| `kryntis/tools/database.py` | Tools | SQL query execution and database tool |
-| `kryntis/tools/http_client.py` | Tools | Custom HTTP REST API client tool |
-| `kryntis/tools/system_info.py` | Tools | Host system metrics and runtime inspection tool |
-| `kryntis/tools/media_analyzer.py` | Tools | Multimodal audio/video/image inspector tool |
-| `kryntis/tools/biometric_analyzer.py` | Tools | Biomedical & neural telemetry sensor signal analyzer |
-| `kryntis/training/trainer.py` | Training | PyTorch transformer training loop with gradient accumulation |
-| `kryntis/training/config.py` | Training | Hyperparameter and model dimension configuration |
-| `kryntis/training/dataset_loader.py` | Training | Streaming JSONL dataset loader and batch generator |
-| `kryntis/training/evaluator.py` | Training | Perplexity and validation loss checkpoint evaluator |
-| `kryntis/utils/config.py` | Utilities | Hierarchical YAML and environment variable loader |
-| `kryntis/utils/logging.py` | Utilities | Structured structlog and standard logging settings |
-| `kryntis/utils/cache.py` | Utilities | LRU and TTL memory caching engine |
-| `kryntis/utils/memory_monitor.py` | Utilities | RAM and VRAM usage monitoring |
-| `kryntis/utils/task_queue.py` | Utilities | Memory-gated background task executor |
-| `kryntis/utils/streaming.py` | Utilities | Async generator token streaming utilities |
-| `kryntis/voice/tts_engine.py` | Voice | Text-to-Speech harmonic formant wave synthesizer |
-| `kryntis/voice/stt_engine.py` | Voice | Speech-to-Text acoustic feature transcriber |
-| `kryntis/voice/voice_interface.py` | Voice | Conversational voice assistant orchestrator |
+| [`main.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/main.py) | CLI Entrypoint | Command-line interface dispatcher for model training, dataset generation, server hosting, interactive chat, and voice synthesis. |
+| [`pyproject.toml`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/pyproject.toml) | Build Configuration | PEP 517/621 packaging metadata, setuptools build configuration, and dependencies for `kryntis_llm`. |
+| [`requirements.txt`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/requirements.txt) | Dependencies | Core production dependencies (PyTorch, FastAPI, Uvicorn, Pydantic, NumPy, Structlog, etc.). |
+| [`requirements-dev.txt`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/requirements-dev.txt) | Development Dependencies | Quality and testing dependencies (pytest, pytest-asyncio, flake8, mypy, black, httpx). |
+| [`.env.example`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env.example) | Environment Template | Master template documenting all environment configuration variables and security secrets. |
+| [`.env-develop`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env-develop) | Environment Config | Development profile settings, debug logging toggles, and local database pointers. |
+| [`.env-stage`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env-stage) | Environment Config | Staging environment profile for integration testing and pre-release validation. |
+| [`.env-qa`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env-qa) | Environment Config | Quality Assurance environment configuration with mocked external services. |
+| [`.env-prod`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env-prod) | Environment Config | Production deployment configuration with multi-worker concurrency and strict rate limits. |
+| [`.env-encryption.key`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.env-encryption.key) | Cryptographic Key | AES-256 Fernet cryptographic key for automated environment secret encryption at rest. |
+| [`.gitignore`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.gitignore) | Git Configuration | Excludes temporary caches, virtual environments (`.venv`), model checkpoints (`.pt`), databases, and IDE configs. |
+| [`config/default.yaml`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/config/default.yaml) | Master System Config | YAML configuration for host/port, model backends, memory thresholds, RAG parameters, security caps, and voice audio settings. |
+| [`config/logging.yaml`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/config/logging.yaml) | Logging Configuration | Structlog and standard library logging levels, formatters, and rotation policies. |
+| [`assets/kryntis-banner.svg`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/assets/kryntis-banner.svg) | Assets / Branding | Vector SVG graphic banner showcasing Kryntis AI branding. |
+| [`assets/kryntis-dataflow.svg`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/assets/kryntis-dataflow.svg) | Documentation Assets | Architecture and end-to-end dataflow diagram vector asset. |
+| [`.vscode/launch.json`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.vscode/launch.json) | IDE Configuration | Visual Studio Code debug profiles for API serving, sequential training, and CLI execution. |
+| [`.vscode/tasks.json`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.vscode/tasks.json) | IDE Configuration | VSCode task definitions for 1-click dataset generation, tests, and domain model training. |
+| [`.code/rules/coding-rules.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/.code/rules/coding-rules.md) | Development Guidelines | Architectural guidelines, coding rules, and type hinting standards. |
+| [`ENV_ENCRYPTION.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/ENV_ENCRYPTION.md) | Security Guide | Documentation explaining AES-256 Fernet environment encryption and decryption workflows. |
+| [`IMPLEMENTATION_PLAN.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/IMPLEMENTATION_PLAN.md) | Engineering Blueprint | Comprehensive implementation roadmap, module schedules, and technical milestones. |
+| [`LEDGER.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/LEDGER.md) | Change Audit Ledger | Chronological engineering changelog and architectural decisions ledger. |
+| [`SECURITY-AUDIT.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/SECURITY-AUDIT.md) | Security Audit | Vulnerability remediation reports, SSRF safeguards, and input validation audit records. |
+| [`WALKTHROUGH.md`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/WALKTHROUGH.md) | Developer Walkthrough | Step-by-step developer tour and verification guide for all platform capabilities. |
+
+### 2. Core Neural Engine, Tokenization & Execution
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/__init__.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/__init__.py) | Core Package | Package root declaring version `4.0.0` and foundational metadata exports. |
+| [`kryntis/core/model.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model.py) | Transformer Engine | `KryntisTransformer` autoregressive decoder architecture featuring multi-head self-attention, rotary embeddings (RoPE), feed-forward SwiGLU, and KV-cache management. |
+| [`kryntis/core/byte_processor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/byte_processor.py) | Byte Engine | Tokenizer-free direct byte encoder/decoder mapping raw UTF-8 bytes (`0-255`) and reserved control tokens (`PAD`, `BOS`, `EOS`, `UNK`, `MASK`) across a 260-token vocabulary. |
+| [`kryntis/core/inference.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/inference.py) | Inference Engine | Temperature, top-k, top-p nucleus sampling, repetition penalty, and async token stream generators. |
+| [`kryntis/core/model_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/model_manager.py) | Provider Manager | Multi-provider lifecycle orchestrator, health monitor, and dynamic backend switcher. |
+| [`kryntis/core/load_balancer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/load_balancer.py) | Load Balancing | `RoundRobinLoadBalancer`, `WeightedLoadBalancer`, and `LeastLatencyLoadBalancer` for dynamic multi-provider routing. |
+| [`kryntis/core/emotional_intelligence.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/emotional_intelligence.py) | EQ Engine | `EmotionalIntelligenceEngine` measuring sentiment polarity, empathy scoring, urgency, and adaptive conversational framing. |
+| [`kryntis/core/word_tokenizer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/word_tokenizer.py) | Word Tokenizer | Fallback word-level statistical tokenizer and vocabulary indexer. |
+| [`kryntis/core/tokenizer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/tokenizer.py) | BPE Tokenizer | Byte-Pair Encoding subword tokenization engine. |
+| [`kryntis/core/tokenizer_trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/tokenizer_trainer.py) | Tokenizer Trainer | Corpus-driven BPE vocabulary learning and merge table synthesizer. |
+| [`kryntis/core/providers/base.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/providers/base.py) | Provider Interface | Abstract `BaseProvider` contract for inference execution and streaming. |
+| [`kryntis/core/providers/local_provider.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/providers/local_provider.py) | Local PyTorch Backend | Standalone local model execution provider loading `.pt` checkpoints directly to CPU/GPU/Metal. |
+| [`kryntis/core/providers/openai_provider.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/providers/openai_provider.py) | OpenAI Client | Integration adapter for OpenAI API compatibility. |
+| [`kryntis/core/providers/anthropic_provider.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/core/providers/anthropic_provider.py) | Anthropic Client | Integration adapter for Anthropic Claude API backend. |
+| [`kryntis/native_ts/byte_direct_engine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/native_ts/byte_direct_engine.py) | Native Compute | Optimized raw byte-array streaming and zero-copy byte buffers. |
+| [`kryntis/native_ts/tensor_ops.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/native_ts/tensor_ops.py) | Tensor Math | Pure-Python and vectorized matrix multiplication, softmax, and layer norm fallbacks. |
+
+### 3. Model Training, Continual Learning & Datasets
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/training/trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/trainer.py) | Training Loop | PyTorch training loop implementing AdamW optimization, gradient accumulation, gradient norm clipping, and loss tracking. |
+| [`kryntis/training/config.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/config.py) | Training Configuration | Dataclasses for model hyperparameters (layers, heads, dimensions) and optimizer parameters (lr, weight decay, batch size). |
+| [`kryntis/training/dataset_loader.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/dataset_loader.py) | Dataset Loader | `StreamingCodeDataset` streaming JSONL tokens with shifted next-token autoregressive targets ($y_t = x_{t+1}$). |
+| [`kryntis/training/evaluator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/training/evaluator.py) | Model Evaluation | Perplexity, cross-entropy validation loss, and generation quality benchmark evaluator. |
+| [`kryntis/learning/continual_learner.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/learning/continual_learner.py) | Continual Learning | `ContinualLearner` queueing confidence-gated knowledge updates and micro-batch weight updates. |
+| [`kryntis/learning/user_trainer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/learning/user_trainer.py) | Feedback Fine-Tuning | Direct human-in-the-loop interactive teaching engine for on-the-fly gradient updates from user corrections. |
+| [`kryntis/learning/versioning.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/learning/versioning.py) | Model Versioning | Checkpoint snapshot tracker, weight checksum validator, and rollback coordinator. |
+| [`kryntis/datasets/catalog.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/datasets/catalog.py) | Dataset Catalog | Registry of 14 specialized industry domains (Coding, AGI, Healthcare, FinTech, Military, Government, etc.). |
+| [`kryntis/datasets/downloader.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/datasets/downloader.py) | Dataset Fetcher | Async downloader retrieving raw source repositories and open datasets. |
+| [`kryntis/datasets/processor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/datasets/processor.py) | Dataset Processor | Tokenization, deduplication, and standardized JSONL corpus preparation pipeline. |
+| [`kryntis/datasets/synthetic_generator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/datasets/synthetic_generator.py) | Synthetic Generator | Domain-specific synthetic Q&A and reasoning dataset generator. |
+| [`scripts/train.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/scripts/train.py) | Standalone Training Script | Python script for launching domain training pipelines from external schedulers or shell commands. |
+| [`scripts/download_datasets.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/scripts/download_datasets.py) | Dataset Download Script | CLI utility to download public training datasets. |
+
+### 4. Cognitive Orchestration, Reasoning & Context
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/orchestrator/agent_loop.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/agent_loop.py) | Orchestration Core | Central `AgentLoop` coordinating user intents, RAG context injection, tool invocations, and grounded response synthesis. |
+| [`kryntis/orchestrator/grounding_verifier.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/grounding_verifier.py) | Grounding Gate | `GroundingVerifier` performing query ambiguity checks and reference-chunk lexical overlap verification ($r \ge 0.15$). |
+| [`kryntis/orchestrator/intent_router.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/intent_router.py) | Intent Classification | Rules and semantic classifier routing queries across chat, tools, RAG search, or system commands. |
+| [`kryntis/orchestrator/prompt_builder.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/prompt_builder.py) | Prompt Assembly | Grounded system prompt generator infusing memory context, retrieved facts, and EQ tone adjustments. |
+| [`kryntis/orchestrator/task_planner.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/orchestrator/task_planner.py) | Task Decomposition | Hierarchical task planner decomposing complex multi-domain user goals into sub-tasks. |
+| [`kryntis/reasoning/counterfactual_simulator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/counterfactual_simulator.py) | Causal Simulation | `CausalCounterfactualSimulator` running in-silico what-if branch modeling for Enterprise, Scientific, and Interpersonal scenarios. |
+| [`kryntis/reasoning/self_falsifying_logic.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/reasoning/self_falsifying_logic.py) | Adversarial Auditor | `SelfFalsifyingLogicEngine` performing adversarial audits for legal contracts, scientific papers, and anti-hallucination fact guards. |
+| [`kryntis/coordinator/task_coordinator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/coordinator/task_coordinator.py) | Multi-Agent Coordinator | Manages dependencies and data handoffs across parallel sub-agent workflows. |
+| [`kryntis/coordinator/agent_scheduler.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/coordinator/agent_scheduler.py) | Agent Scheduling | Priority-based agent task scheduler and execution resource allocator. |
+| [`kryntis/context/session_context.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/context/session_context.py) | Session Context | Thread-safe active conversational session state container. |
+| [`kryntis/context/execution_context.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/context/execution_context.py) | Execution Context | Request-scoped context carrying telemetry, cancellation tokens, and caller identity. |
+| [`kryntis/state/state_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/state/state_manager.py) | State Management | Atomic state container with observer pattern event subscription. |
+| [`kryntis/state/reducers.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/state/reducers.py) | State Reducers | Deterministic state mutation reducers for session transitions and model state updates. |
+
+### 5. Subagents, Skills & Assistant System
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/subagents/subagent_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/subagents/subagent_manager.py) | Subagent Management | Dynamic spawning, lifecycle tracking, and inter-subagent communication manager. |
+| [`kryntis/subagents/agent_definition.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/subagents/agent_definition.py) | Agent Specifications | Declarative schemas defining subagent roles, permitted tools, memory scopes, and constraints. |
+| [`kryntis/subagents/executor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/subagents/executor.py) | Subagent Runner | Execution harness running subagent reasoning loops asynchronously with isolated scratchpads. |
+| [`kryntis/skills/skill_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/skills/skill_manager.py) | Skill Lifecycle | Manager for registering, discovering, and executing modular agent skills. |
+| [`kryntis/skills/skill_registry.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/skills/skill_registry.py) | Skill Catalog | Central catalog registering reusable specialized capabilities and tool compositions. |
+| [`kryntis/assistant/assistant_core.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/assistant/assistant_core.py) | Assistant Core | High-level assistant runtime coordinating dialogue history, skills, and tools. |
+| [`kryntis/assistant/conversation_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/assistant/conversation_manager.py) | Dialogue Manager | Conversation thread state tracker, branching manager, and turn history persistency. |
+| [`kryntis/buddy/pair_coder.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/buddy/pair_coder.py) | Pair Coder | Autonomous coding partner assisting with real-time code generation, AST diffing, and refactoring. |
+| [`kryntis/buddy/feedback_loop.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/buddy/feedback_loop.py) | Coding Feedback | Automated test execution, error log parser, and iterative code-repair feedback loop. |
+
+### 6. Security, Privacy & Guardrails
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/security/guardrails.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/guardrails.py) | Safety Guardrails | Comprehensive input and output policy validation engine guarding against toxicity, system jailbreaks, and unsafe instructions. |
+| [`kryntis/security/privacy_masker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/privacy_masker.py) | Privacy Masking | `DynamicPrivacyMasker` providing Zero-Leak enterprise, Double-Blind scientific, and PII consumer sanitization with bidirectional entity mapping. |
+| [`kryntis/security/prompt_guard.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/prompt_guard.py) | Injection Defense | Heuristic and pattern-matching prompt injection and delimiter hijacking detector. |
+| [`kryntis/security/output_sanitizer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/output_sanitizer.py) | Output Sanitizer | Post-generation scrubber redacting inadvertent credentials, keys, and personal identifiers from model responses. |
+| [`kryntis/security/rate_limiter.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/rate_limiter.py) | Rate Limiting | `TokenBucketRateLimiter` and `SlidingWindowRateLimiter` managing multi-tier request throttling. |
+| [`kryntis/security/ssrf.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/security/ssrf.py) | SSRF Protection | Server-Side Request Forgery validator blocking private CIDR subnets (RFC 1918, link-local, loopback) and malicious DNS rebinding. |
+
+### 7. Universal Chunking & Multimodal Document Ingestion
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/chunking/base.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/base.py) | Chunking Interface | Abstract `BaseChunker` and `Chunk` dataclass with metadata, hash provenance, and positional offsets. |
+| [`kryntis/chunking/chunk_router.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/chunk_router.py) | Chunking Dispatcher | Format router inspecting MIME types and extensions to route documents to format-specific chunkers. |
+| [`kryntis/chunking/text_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/text_chunker.py) | Text Chunker | Plain text and Markdown chunker with token-window sliding and paragraph boundary preservation. |
+| [`kryntis/chunking/code_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/code_chunker.py) | Code Chunker | AST-aware code chunker parsing syntax boundaries for 40+ programming languages. |
+| [`kryntis/chunking/pdf_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/pdf_chunker.py) | PDF Chunker | Page-aware PDF document parser extracting text blocks, headers, and structural pages. |
+| [`kryntis/chunking/docx_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/docx_chunker.py) | DOCX Chunker | Microsoft Word DOCX paragraph and tabular data parser. |
+| [`kryntis/chunking/pptx_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/pptx_chunker.py) | PPTX Chunker | PowerPoint presentation slide deck parser extracting slide shapes and speaker notes. |
+| [`kryntis/chunking/spreadsheet_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/spreadsheet_chunker.py) | Spreadsheet Chunker | Excel (`.xlsx`, `.xls`) and CSV row/column tabular matrix parser. |
+| [`kryntis/chunking/html_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/html_chunker.py) | HTML Chunker | DOM and semantic HTML tag cleaner stripping boilerplate and extracting article text. |
+| [`kryntis/chunking/json_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/json_chunker.py) | JSON Chunker | Hierarchical JSON and JSONL key-path structural chunker. |
+| [`kryntis/chunking/image_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/image_chunker.py) | Image / OCR Chunker | Multimodal visual document chunker processing image EXIF metadata and OCR text content. |
+| [`kryntis/chunking/audio_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/audio_chunker.py) | Audio Chunker | Acoustic and waveform segment chunker for audio files ($\le 10$ MB limit). |
+| [`kryntis/chunking/video_chunker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/chunking/video_chunker.py) | Video Chunker | Temporal scene and keyframe metadata chunker for video files ($\le 10$ MB limit). |
+| [`kryntis/ingestion/pipeline.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ingestion/pipeline.py) | Ingestion Pipeline | End-to-end streaming ingestion pipeline orchestrating validation, chunking, embedding, and storage. |
+| [`kryntis/ingestion/validator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ingestion/validator.py) | Ingestion Validator | MIME validator enforcing 100 MB max document size and 10 MB max media file limits. |
+| [`kryntis/ingestion/progress.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ingestion/progress.py) | Ingestion Progress | Asynchronous job progress tracker, ETA calculator, and ingestion telemetry reporter. |
+
+### 8. Knowledge Graph, Vector Store, RAG & Search
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/rag/embedder.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/rag/embedder.py) | Dense Embeddings | Text embedding engine producing dense semantic vectors for document chunks and user queries. |
+| [`kryntis/rag/retriever.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/rag/retriever.py) | Hybrid Retriever | Multi-strategy retriever blending BM25 lexical search with dense vector similarity via Reciprocal Rank Fusion (RRF). |
+| [`kryntis/rag/reranker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/rag/reranker.py) | Neural Reranker | Cross-encoder reranker scoring fine-grained query-document relevance. |
+| [`kryntis/rag/context_builder.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/rag/context_builder.py) | Context Assembler | Token-budget-aware context builder formatting grounded citations (`[1]`, `[2]`). |
+| [`kryntis/knowledge/vector_store.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/knowledge/vector_store.py) | Vector Storage | In-memory and SQLite disk-backed cosine similarity vector store. |
+| [`kryntis/knowledge/document_store.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/knowledge/document_store.py) | Document Metadata Store | SQLite document registry storing full-text bodies, chunk relationships, and document metadata. |
+| [`kryntis/knowledge/pgvector_adapter.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/knowledge/pgvector_adapter.py) | Enterprise Vector DB | PostgreSQL + `pgvector` adapter for high-scale enterprise vector storage and indexing. |
+| [`kryntis/knowledge/knowledge_graph.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/knowledge/knowledge_graph.py) | Knowledge Graph | Entity-relationship graph extractor, node-edge indexer, and multi-hop graph traversal engine. |
+| [`kryntis/knowledge/provenance.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/knowledge/provenance.py) | Provenance Tracker | SHA-256 tamper-evident hash tracker logging origin and edit history of knowledge items. |
+| [`kryntis/evaluation/rag_evaluator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/evaluation/rag_evaluator.py) | RAG Evaluator | Triad evaluator calculating Groundedness, Answer Relevancy, and Context Recall metrics. |
+| [`kryntis/query/query_executor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/query/query_executor.py) | Query Executor | Pipeline executing hybrid vector and keyword queries against knowledge repositories. |
+| [`kryntis/query/query_parser.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/query/query_parser.py) | Query Parser | Structured search syntax parser extracting domain filters, date ranges, and boolean operators. |
+| [`kryntis/query_engine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/query_engine.py) | Query Engine | High-level semantic search facade unifying vector lookup, keyword scoring, and reranking. |
+| [`kryntis/QueryEngine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/QueryEngine.py) | Query Engine Alias | Compatibility alias exposing `QueryEngine` interface. |
+| [`kryntis/internet/research_pipeline.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/research_pipeline.py) | Web Research | Multi-step research pipeline searching the web, scraping articles, filtering spam, and synthesizing answers. |
+| [`kryntis/internet/searcher.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/searcher.py) | Search API Client | Async client for DuckDuckGo and Brave Search APIs. |
+| [`kryntis/internet/fetcher.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/fetcher.py) | HTTP Web Fetcher | High-concurrency webpage downloader with rate limits and timeout protections. |
+| [`kryntis/internet/extractor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/extractor.py) | HTML Content Extractor | Content readability extractor stripping ads and navigation boilerplate from HTML pages. |
+| [`kryntis/internet/citation_builder.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/citation_builder.py) | Web Citation Builder | Generates formatted bibliographic citations and tracking URLs for external sources. |
+| [`kryntis/internet/validator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/internet/validator.py) | Web Trust Scorer | Domain reputation and SSL trust evaluator for external internet sources. |
+
+### 9. 5B Virtual Session Memory & Directory Persistence
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/memory/session_context_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memory/session_context_manager.py) | 5B Virtual Stream | 5 Billion (5B) virtual context engine streaming unbounded conversations through tiered memory windows. |
+| [`kryntis/memory/short_term.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memory/short_term.py) | Short-Term Memory | Active working memory holding the immediate sliding dialogue turns. |
+| [`kryntis/memory/long_term.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memory/long_term.py) | Long-Term Memory | Semantic associative memory retrieving historical context across past conversations. |
+| [`kryntis/memory/episodic.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memory/episodic.py) | Episodic Memory | Event-based conversation episode logger with temporal and emotional tagging. |
+| [`kryntis/memory/consolidator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memory/consolidator.py) | Memory Consolidation | Background worker summarizing old conversational episodes and transferring key facts into long-term storage. |
+| [`kryntis/memdir/memory_directory.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memdir/memory_directory.py) | Memory Directory | File-system-backed memory directory providing hierarchical storage for long-term agent state. |
+| [`kryntis/memdir/context_store.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/memdir/context_store.py) | Memory Context Store | Fast disk-persisted key-value context cache for cross-session resumption. |
+
+### 10. SOLID Persistence Repositories & Migrations
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/repositories/base.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/base.py) | Repository Interfaces | Generic SOLID repository contracts (`IRepository`, `ISessionRepository`, `IDocumentRepository`, `IKnowledgeRepository`). |
+| [`kryntis/repositories/session_repository.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/session_repository.py) | Session Persistence | SQLite repository persisting session turns, token metrics, and user feedback records. |
+| [`kryntis/repositories/document_repository.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/document_repository.py) | Document Persistence | SQLite repository managing ingested documents, chunks, and metadata relations. |
+| [`kryntis/repositories/knowledge_repository.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/repositories/knowledge_repository.py) | Knowledge Persistence | SQLite vector embedding and semantic index persistence repository. |
+| [`kryntis/migrations/schema_migrator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/migrations/schema_migrator.py) | Schema Migrator | Version-controlled SQLite database schema migration engine. |
+| [`kryntis/migrations/v1_initial.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/migrations/v1_initial.py) | Initial Schema | DDL script establishing initial tables for sessions, documents, chunks, and vectors. |
+
+### 11. Web Services, Routers, Protocols & Remote Gateways
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/service/app.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/app.py) | FastAPI Application | Master FastAPI ASGI application factory configuring CORS, middleware, routers, Swagger UI (`/docs`), and ReDoc (`/redoc`). |
+| [`kryntis/service/dependencies.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/dependencies.py) | Dependency Injection | FastAPI dependency injectors supplying repositories, orchestrators, and security checkers. |
+| [`kryntis/service/middleware.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/middleware.py) | HTTP Middleware | Request timing, structured access logging, error handling, and rate-limiting middleware. |
+| [`kryntis/service/routers/chat.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/chat.py) | Chat Router | Endpoints for synchronous chat (`/api/v1/chat`) and Server-Sent Events token streaming (`/api/v1/chat/stream`). |
+| [`kryntis/service/routers/voice.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/voice.py) | Voice Router | Endpoints for speech synthesis (`/api/v1/voice/synthesize`), transcription (`/api/v1/voice/transcribe`), and conversational audio (`/api/v1/voice/chat`). |
+| [`kryntis/service/routers/ingestion.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/ingestion.py) | Ingestion Router | Multipart file upload (`/api/v1/ingestion/upload`) and raw text ingestion (`/api/v1/ingestion/text`) endpoints. |
+| [`kryntis/service/routers/knowledge.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/knowledge.py) | Knowledge Router | Semantic hybrid query (`/api/v1/knowledge/query`) and document status inspection endpoints. |
+| [`kryntis/service/routers/admin.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/admin.py) | Admin & Training Router | Health inspection (`/api/v1/admin/health`), system status, and user-correction fine-tuning endpoints. |
+| [`kryntis/service/routers/mcp.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/mcp.py) | MCP HTTP Endpoint | Model Context Protocol HTTP POST endpoint (`/mcp`). |
+| [`kryntis/service/routers/a2a.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/service/routers/a2a.py) | A2A Endpoint | Agent-to-Agent public discovery card endpoint (`/.well-known/agent.json`). |
+| [`kryntis/mcp/protocol.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/mcp/protocol.py) | MCP Protocol | JSON-RPC 2.0 protocol specifications and message envelopes for Model Context Protocol. |
+| [`kryntis/mcp/server.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/mcp/server.py) | MCP Server | Server implementation exposing tools, resources, and prompt templates over MCP. |
+| [`kryntis/mcp/client.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/mcp/client.py) | MCP Client | Client adapter connecting Kryntis to external MCP tool and resource servers. |
+| [`kryntis/mcp/transports.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/mcp/transports.py) | MCP Transports | Standard I/O (stdio) and HTTP/SSE transport channels for MCP. |
+| [`kryntis/a2a/protocol.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/a2a/protocol.py) | A2A Protocol | Agent-to-Agent protocol types, Agent Card schema, task negotiation, and peer handshake handlers. |
+| [`kryntis/server/fastapi_server.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/server/fastapi_server.py) | Server Runner | ASGI server runner with automatic host/port binding and graceful shutdown hooks. |
+| [`kryntis/server/websocket_server.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/server/websocket_server.py) | WebSocket Server | Full-duplex WebSocket server handler for real-time bidirectional audio and text streaming. |
+| [`kryntis/upstreamproxy/load_balancer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/upstreamproxy/load_balancer.py) | Proxy Load Balancer | Upstream load balancing distributor with circuit breakers and health checks. |
+| [`kryntis/upstreamproxy/reverse_proxy.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/upstreamproxy/reverse_proxy.py) | Reverse Proxy | Transparent reverse proxy forwarding requests to remote compute nodes. |
+| [`kryntis/remote/cluster_node.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/remote/cluster_node.py) | Cluster Node | Model and state management for federated compute cluster nodes. |
+| [`kryntis/remote/remote_worker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/remote/remote_worker.py) | Remote Worker | Remote worker client dispatching inference and batch tasks to cluster nodes. |
+| [`kryntis/ssh/ssh_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ssh/ssh_manager.py) | SSH Manager | Secure SSH connection manager for remote model deployment and execution. |
+| [`kryntis/ssh/tunnel_handler.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ssh/tunnel_handler.py) | SSH Port Forwarder | Automated local and remote port forwarding tunnel handler. |
+| [`kryntis/bridge/bridge_router.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/bridge/bridge_router.py) | Bridge Router | Gateway router translating external bridge requests into internal service actions. |
+| [`kryntis/bridge/ipc_channel.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/bridge/ipc_channel.py) | IPC Channel | Inter-process communication pipe for multi-process worker synchronization. |
+
+### 12. Extensible AI Tools
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/tools/tool_registry.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/tool_registry.py) | Tool Registry | Central registry managing tool registration, schema validation, and safe sandboxed invocation. |
+| [`kryntis/tools/code_interpreter.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/code_interpreter.py) | Code Interpreter | Sandboxed Python code execution tool capturing stdout, stderr, and return values. |
+| [`kryntis/tools/calculator.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/calculator.py) | Math Tool | Safe mathematical expression parser and scientific calculation engine. |
+| [`kryntis/tools/file_system.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/file_system.py) | File System Tool | Guardrailed local file system operations (read, write, list) with path traversal restrictions. |
+| [`kryntis/tools/database.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/database.py) | Database Tool | Read-only SQL query execution tool against configured SQLite and PostgreSQL databases. |
+| [`kryntis/tools/web_browser.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/web_browser.py) | Web Browser Tool | Safe HTTP client tool for fetching and extracting web text content with SSRF defenses. |
+| [`kryntis/tools/http_client.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/http_client.py) | HTTP Tool | Configurable HTTP client tool for calling external REST APIs. |
+| [`kryntis/tools/media_analyzer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/media_analyzer.py) | Media Tool | Analysis tool inspecting image, audio, and video properties, format headers, and duration. |
+| [`kryntis/tools/biometric_analyzer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/biometric_analyzer.py) | Biometric Tool | Clinical telemetry and physiological metric data analyzer for Healthcare domain workflows. |
+| [`kryntis/tools/system_info.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tools/system_info.py) | System Info Tool | Host diagnostic tool inspecting CPU, GPU, RAM, disk space, and OS environment. |
+
+### 13. Terminal UI, REPL, Ink Renderer, Screens & Vim Buffer
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/cli/repl.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/cli/repl.py) | Interactive REPL | Rich interactive terminal REPL featuring multi-line input, slash-commands, and real-time streaming. |
+| [`kryntis/cli/interactive.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/cli/interactive.py) | Interactive Loops | Interactive teaching and chat loop managers with command histories. |
+| [`kryntis/cli/parser.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/cli/parser.py) | CLI Argparse | Command-line argument parser for subcommands (`serve`, `train`, `generate-datasets`, `chat`, `voice`). |
+| [`kryntis/cli/formatters.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/cli/formatters.py) | Output Formatters | ANSI and Rich color formatters for tables, status banners, markdown rendering, and spinners. |
+| [`kryntis/commands/serve_command.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/commands/serve_command.py) | Serve Command | CLI command handler starting the FastAPI server with Swagger documentation. |
+| [`kryntis/commands/train_command.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/commands/train_command.py) | Train Command | CLI command handler executing sequential domain model training. |
+| [`kryntis/commands/query_command.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/commands/query_command.py) | Query Command | CLI command handler executing hybrid semantic queries against vector stores. |
+| [`kryntis/entrypoints/cli_entrypoint.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/entrypoints/cli_entrypoint.py) | CLI Entrypoint | Package entrypoint handler for CLI execution. |
+| [`kryntis/entrypoints/server_entrypoint.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/entrypoints/server_entrypoint.py) | Server Entrypoint | Package entrypoint handler for server process launches. |
+| [`kryntis/ink/renderer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ink/renderer.py) | Ink Terminal Renderer | React/Ink-style declarative terminal UI component renderer. |
+| [`kryntis/ink/terminal_layout.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/ink/terminal_layout.py) | Layout Engine | Flexbox-inspired grid and box layout calculation engine for terminal views. |
+| [`kryntis/components/prompt_box.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/components/prompt_box.py) | UI Prompt Box | Interactive prompt input box component with cursor navigation and history. |
+| [`kryntis/components/status_bar.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/components/status_bar.py) | UI Status Bar | Real-time status bar displaying model status, active domain, tokens/sec, and memory load. |
+| [`kryntis/components/terminal_view.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/components/terminal_view.py) | UI Terminal View | Virtual terminal viewport handling scrollback buffers and ansi sequences. |
+| [`kryntis/screens/chat_screen.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/screens/chat_screen.py) | Chat Screen | Full-screen interactive chat interface screen. |
+| [`kryntis/screens/dashboard_screen.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/screens/dashboard_screen.py) | Dashboard Screen | Operational telemetry dashboard screen visualizing throughput, cache hits, and server health. |
+| [`kryntis/moreright/sidebar_panel.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/moreright/sidebar_panel.py) | Sidebar Panel | Right-hand side dockable panel displaying active memory facts and citation references. |
+| [`kryntis/moreright/inspector_view.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/moreright/inspector_view.py) | Inspector View | Token inspector and embedding vector visualization panel. |
+| [`kryntis/outputStyles/theme_palette.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/outputStyles/theme_palette.py) | UI Color Themes | Cyberpunk, Monokai, Dark Modern, and High-Contrast terminal theme palettes. |
+| [`kryntis/outputStyles/color_formatter.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/outputStyles/color_formatter.py) | Color Formatter | 24-bit TrueColor and ANSI escape code text formatting utilities. |
+| [`kryntis/keybindings/keymap_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/keybindings/keymap_manager.py) | Keymap Manager | Keyboard shortcut manager binding hotkeys to application actions. |
+| [`kryntis/keybindings/vim_bindings.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/keybindings/vim_bindings.py) | Vim Keybindings | Vim-style keyboard shortcuts (`hjkl`, `w`, `b`, `dd`, `yy`, `p`, etc.). |
+| [`kryntis/vim/vim_engine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/vim/vim_engine.py) | Vim Modal Engine | Modal state machine managing Normal, Insert, Visual, and Command modes. |
+| [`kryntis/vim/buffer_editor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/vim/buffer_editor.py) | Buffer Editor | Text buffer editor supporting undo/redo trees, line navigation, and text substitutions. |
+
+### 14. Voice Synthesis & Audio Processing
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/voice/tts_engine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/voice/tts_engine.py) | Text-to-Speech | Pure-Python formant synthesis and PCM wave audio generator for local offline voice output. |
+| [`kryntis/voice/stt_engine.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/voice/stt_engine.py) | Speech-to-Text | Acoustic energy analyzer, voice activity detector (VAD), and speech transcription engine. |
+| [`kryntis/voice/voice_interface.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/voice/voice_interface.py) | Voice Interface | Interactive audio turn coordinator streaming microphone inputs and speaker outputs. |
+
+### 15. Plugins, Lifecycle Hooks, Background Tasks, Services & Utilities
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`kryntis/plugins/base_plugin.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/plugins/base_plugin.py) | Plugin Interface | Abstract `BasePlugin` defining plugin lifecycle methods (`initialize`, `shutdown`). |
+| [`kryntis/plugins/manifest.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/plugins/manifest.py) | Plugin Manifest | Pydantic schema validating plugin manifests, permissions, and dependencies. |
+| [`kryntis/plugins/plugin_manager.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/plugins/plugin_manager.py) | Plugin Manager | Plugin discovery, sandbox loading, and event hook distribution engine. |
+| [`kryntis/hooks/session_hooks.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/hooks/session_hooks.py) | Session Hooks | Event hooks triggered on session start, message receive, turn completion, and session close. |
+| [`kryntis/hooks/stream_hooks.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/hooks/stream_hooks.py) | Streaming Hooks | Lifecycle hooks intercepting token streams for filtering, analytics, or transformation. |
+| [`kryntis/tasks/task_queue.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tasks/task_queue.py) | Task Queue | Priority-based async background job queue with retry mechanisms. |
+| [`kryntis/tasks/background_worker.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/tasks/background_worker.py) | Background Worker | Daemon worker thread executing scheduled maintenance, training, and memory consolidation. |
+| [`kryntis/services/inference_service.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/services/inference_service.py) | Inference Service | Service layer bridging HTTP/CLI entrypoints to the underlying neural execution engine. |
+| [`kryntis/services/rag_service.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/services/rag_service.py) | RAG Service | Service layer coordinating document ingestion, chunk indexing, and context retrieval. |
+| [`kryntis/bootstrap/app_initializer.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/bootstrap/app_initializer.py) | App Initializer | System startup coordinator initializing databases, loading models, and starting background workers. |
+| [`kryntis/bootstrap/environment_bootstrap.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/bootstrap/environment_bootstrap.py) | Environment Bootstrap | Validates directory structures, creates requisite folders, and checks environment variables. |
+| [`kryntis/constants/version_info.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/constants/version_info.py) | Version Constants | Semantic versioning definitions, build timestamps, and release channel identifiers. |
+| [`kryntis/constants/system_defaults.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/constants/system_defaults.py) | System Defaults | Default constants for buffer sizes, timeout limits, vocabulary defaults, and ports. |
+| [`kryntis/schemas/config_schema.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/schemas/config_schema.py) | Config Schemas | Pydantic schema model validating configuration YAML files and environment settings. |
+| [`kryntis/schemas/session_schema.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/schemas/session_schema.py) | Session Schemas | Pydantic models for chat requests, token streams, citations, and dialogue turns. |
+| [`kryntis/schemas/agent_schema.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/schemas/agent_schema.py) | Agent Schemas | Pydantic schemas validating Agent Card JSON and MCP tool metadata envelopes. |
+| [`kryntis/types/inference_types.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/types/inference_types.py) | Inference Types | TypedDict definitions for generation parameters, token logs, and model configs. |
+| [`kryntis/types/message_types.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/types/message_types.py) | Message Types | TypedDict definitions for chat messages, system directives, and tool payloads. |
+| [`kryntis/types/agent_types.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/types/agent_types.py) | Agent Types | TypedDict definitions for subagent states, cards, and execution plans. |
+| [`kryntis/utils/config.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/config.py) | Config Utility | YAML and environment variable loader with validation and hierarchical overrides. |
+| [`kryntis/utils/logging.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/logging.py) | Logging Utility | Structlog logger initializer providing colored terminal and JSON log output. |
+| [`kryntis/utils/cache.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/cache.py) | Cache Utility | Thread-safe LRU and TTL in-memory caching mechanisms. |
+| [`kryntis/utils/memory_monitor.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/memory_monitor.py) | Memory Monitor | Process RAM, GPU VRAM, and system resource consumption monitor. |
+| [`kryntis/utils/streaming.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/streaming.py) | Streaming Utility | Async token generator utilities for chunking and buffering text streams. |
+| [`kryntis/utils/task_queue.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/kryntis/utils/task_queue.py) | Task Queue Utility | Asynchronous task queue helper for bounded concurrency. |
+
+### 16. Comprehensive Test Suites
+
+| File Path | Subsystem | Purpose & Description |
+|---|---|---|
+| [`tests/test_all_features.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_all_features.py) | Full Integration Suite | End-to-end integration tests verifying model training, RAG hybrid search, 5B context, rate limiting, and all 10 tools. |
+| [`tests/test_security_remediations.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_security_remediations.py) | Security Suite | Tests validating SSRF defenses, dynamic privacy masking across 3 scopes, self-falsifying logic, counterfactual simulation, and grounding verification. |
+| [`tests/test_main.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_main.py) | Main CLI Suite | Tests for `main.py` command dispatching (`serve`, `train`, `generate-datasets`, `chat`, `voice`). |
+| [`tests/test_a2a.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_a2a.py) | A2A Protocol Suite | Tests validating Agent Card discovery and inter-agent negotiation protocols. |
+| [`tests/test_mcp.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_mcp.py) | MCP Gateway Suite | Tests for JSON-RPC 2.0 Model Context Protocol tool and resource endpoints. |
+| [`tests/test_subagents.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_subagents.py) | Subagents Suite | Tests for dynamic subagent creation, task delegation, and execution harness. |
+| [`tests/test_skills.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_skills.py) | Skills Suite | Tests for skill registry, execution, and composition. |
+| [`tests/test_plugins.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_plugins.py) | Plugins Suite | Tests for plugin discovery, lifecycle hooks, and sandbox execution. |
+| [`tests/test_cli_subsystem.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/test_cli_subsystem.py) | Terminal UI Suite | Tests verifying REPL commands, formatters, and interactive chat flows. |
+| [`tests/ingestion/test_pipeline.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/ingestion/test_pipeline.py) | Ingestion Suite | Tests for multi-format document chunking, validation, and pipeline progress tracking. |
+| [`tests/datasets/test_catalog.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/datasets/test_catalog.py) | Dataset Catalog Suite | Tests for 14-domain dataset catalog definitions and model registry integrity. |
+| [`tests/datasets/test_downloader.py`](file:///E:/Personal/Kryntis%20AI/kryntis-llm-local/tests/datasets/test_downloader.py) | Dataset Downloader Suite | Tests for async dataset downloading and local cache staging. |
 
 ---
 

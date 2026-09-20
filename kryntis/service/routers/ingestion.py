@@ -1,5 +1,5 @@
 """
-Ingestion router — multipart file upload with background processing.
+Ingestion router — multipart file upload with background processing, path sanitization, and size validation.
 
 Endpoints:
   POST   /api/v1/ingestion/upload    → upload files, returns job_id
@@ -9,8 +9,10 @@ Endpoints:
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -19,6 +21,7 @@ from fastapi import BackgroundTasks
 from kryntis.ingestion.pipeline import IngestionPipeline
 from kryntis.ingestion.progress import format_progress
 from kryntis.service.dependencies import get_doc_store, get_ingestion_pipeline
+from kryntis.utils.config import get_config
 
 router = APIRouter()
 
@@ -34,32 +37,45 @@ async def upload_files(
 
     Returns a job_id that can be polled for status.
     """
-    if len(files) > 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 files per upload")
+    cfg = get_config().ingestion
+    if len(files) > cfg.max_files_per_batch:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {cfg.max_files_per_batch} files per upload batch",
+        )
 
-    # Save to temp dir
+    # Save to dedicated temporary directory
     tmp_dir = Path(tempfile.mkdtemp(prefix="kryntis_upload_"))
     saved: list[Path] = []
 
-    for upload in files:
-        dest = tmp_dir / (upload.filename or "file")
-        with open(dest, "wb") as f:
-            shutil.copyfileobj(upload.file, f)
-        saved.append(dest)
+    try:
+        for upload in files:
+            # Prevent path traversal by extracting strictly the basename
+            raw_filename = upload.filename or f"upload_{uuid.uuid4().hex[:8]}"
+            safe_basename = Path(raw_filename).name
+            if not safe_basename or safe_basename.startswith("."):
+                safe_basename = f"file_{uuid.uuid4().hex[:8]}"
 
-    # Run ingestion in background
-    async def run():
-        try:
-            await pipeline.ingest_files(saved)
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            dest = tmp_dir / safe_basename
 
-    background_tasks.add_task(run)
+            # Stream with size validation
+            total_bytes = 0
+            with open(dest, "wb") as f:
+                while chunk := await upload.read(cfg.streaming_chunk_bytes):
+                    total_bytes += len(chunk)
+                    if total_bytes > cfg.max_file_size_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"File '{safe_basename}' exceeds maximum allowed size ({cfg.max_file_size_bytes} bytes).",
+                        )
+                    f.write(chunk)
 
-    # Start the job to get a job_id synchronously
-    job = await pipeline.ingest_files(saved)
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-    return format_progress(job)
+            saved.append(dest)
+
+        job = await pipeline.ingest_files(saved)
+        return format_progress(job)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @router.get("/job/{job_id}")

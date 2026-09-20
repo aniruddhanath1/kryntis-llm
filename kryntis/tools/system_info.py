@@ -1,5 +1,5 @@
 """
-System Info Tool — inspects host platform, memory, OS version, CPU, and runtime environment.
+System Info Tool — inspects host platform, memory, OS version, CPU, and runtime environment with sanitized output.
 """
 
 from __future__ import annotations
@@ -13,15 +13,14 @@ from kryntis.tools.tool_registry import ToolDefinition, ToolParameter
 
 
 def get_system_info() -> dict[str, Any]:
-    """Retrieve host platform, OS, architecture, and Python runtime details."""
+    """Retrieve host platform, OS, architecture, and Python runtime details safely."""
     return {
-        "platform": platform.platform(),
         "system": platform.system(),
         "release": platform.release(),
         "architecture": platform.machine(),
-        "python_version": sys.version,
+        "python_version": platform.python_version(),
         "cpu_count": os.cpu_count(),
-        "current_working_dir": os.getcwd(),
+        "workspace_status": "active",
     }
 
 
